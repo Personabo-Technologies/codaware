@@ -193,6 +193,8 @@ function navigateMenu(direction) {
 async function showContextMenu(inputField, range, query) {
   removeContextMenu();
 
+  //inputField.blur();
+
   const menu = document.createElement('div');
   menu.id = 'mention-context-menu';
 
@@ -409,7 +411,8 @@ async function initializeMentionExtension(inputField) {
   if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
     const interceptEnterKey = (event) => {
       const menu = document.getElementById('mention-context-menu');
-      if (menu && (event.key === 'Enter' || event.inputType === 'insertParagraph')) {
+      if (true && (event.key === 'Enter' || event.inputType === 'insertParagraph')) {
+        inputField.blur();
         console.log(`Intercepted ${event.type} event. Key: ${event.key}, InputType: ${event.inputType}`);
         event.preventDefault();
         event.stopImmediatePropagation();
