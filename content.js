@@ -193,64 +193,103 @@ function navigateMenu(direction) {
 async function showContextMenu(inputField, range, query) {
   removeContextMenu();
 
-  //inputField.blur();
-
   const menu = document.createElement('div');
   menu.id = 'mention-context-menu';
 
-  // First append the menu so we can get its height
+  // Create the input field inside the context menu
+  const menuInput = document.createElement('input');
+  menuInput.type = 'text';
+  menuInput.id = 'menu-input';
+  menuInput.value = query;
+  menuInput.placeholder = 'Search files...';
+  menuInput.className = 'menu-input';
+
+  // Create a suggestions container
+  const suggestionsContainer = document.createElement('div');
+  suggestionsContainer.id = 'suggestions-container';
+  
+  // Append both elements to the menu
+  menu.appendChild(menuInput);
+  menu.appendChild(suggestionsContainer);
   document.body.appendChild(menu);
 
-  // Get the input field dimensions
+  // Position the menu
   const inputRect = inputField.getBoundingClientRect();
-  
-  // Position the menu above the input field, fixed position
   const menuTop = inputRect.top - 20;
   const menuLeft = inputRect.left;
 
-  // Set the menu position using CSS variable
   menu.style.setProperty('--menu-top', `${menuTop}px`);
   menu.style.left = `${menuLeft}px`;
-
-  // Set the width of the menu to match the input field
   menu.style.width = `${inputRect.width}px`;
-  menu.style.height = '150px';
+  menu.style.maxHeight = '200px';
   menu.style.overflowY = 'auto';
 
-  // Get suggestions
+  // Focus on the menu input
+  menuInput.focus();
+
+  // Initial suggestions
+  await updateSuggestions(suggestionsContainer, query);
+
+  // Add event listeners
+  menuInput.addEventListener('input', async (event) => {
+    currentMenuIndex = 0;
+    await updateSuggestions(suggestionsContainer, event.target.value);
+  });
+
+  menuInput.addEventListener('keydown', async (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const highlighted = suggestionsContainer.querySelector('.highlighted');
+      if (highlighted) {
+        const suggestionLabel = highlighted.innerText;
+        const suggestions = await getSuggestions('');
+        const suggestion = suggestions.find(s => s.label === suggestionLabel);
+        if (suggestion) {
+          insertMentionContent(inputField, suggestion);
+          removeContextMenu();
+        }
+      }
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      navigateMenu(event.key);
+    } else if (event.key === 'Escape') {
+      removeContextMenu();
+    }
+  });
+}
+
+async function updateSuggestions(container, query) {
+  container.innerHTML = '';
   const suggestions = await getSuggestions(query);
 
   if (suggestions.length === 0) {
     const item = document.createElement('div');
     item.className = 'mention-menu-item no-results';
     item.innerText = 'No results found';
-    menu.appendChild(item);
-  } else {
-    suggestions.forEach((suggestion, index) => {
-      const item = document.createElement('div');
-      item.className = 'mention-menu-item';
-      item.innerText = suggestion.label;
-
-      item.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-      });
-
-      item.addEventListener('click', () => {
-        insertMentionContent(inputField, suggestion);
-        removeContextMenu();
-      });
-
-      menu.appendChild(item);
-
-      // Highlight the first item by default
-      if (index === 0) {
-        currentMenuIndex = 0; // Set the current menu index to the first item
-        item.classList.add('highlighted'); // Highlight the first item
-      }
-    });
+    container.appendChild(item);
+    return;
   }
 
-  document.body.appendChild(menu);
+  suggestions.forEach((suggestion, index) => {
+    const item = document.createElement('div');
+    item.className = 'mention-menu-item';
+    item.innerText = suggestion.label;
+
+    item.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
+
+    item.addEventListener('click', () => {
+      insertMentionContent(document.querySelector(getSelectors().inputField), suggestion);
+      removeContextMenu();
+    });
+
+    container.appendChild(item);
+
+    if (index === currentMenuIndex) {
+      item.classList.add('highlighted');
+    }
+  });
 }
 
 function insertMentionContent(inputField, suggestion) {
