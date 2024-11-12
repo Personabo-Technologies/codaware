@@ -1,0 +1,61 @@
+/* styles.css */
+
+#mention-context-menu {
+  position: absolute;
+  height: 150px ! important;
+  overflow-y: auto;
+  top: calc(var(--menu-top) - 155px);
+  z-index: 10000;
+  background-color: #000;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 5px 0;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-family: Arial, sans-serif;
+}
+
+#mention-context-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+#mention-context-menu::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+#mention-context-menu::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.mention-menu-item {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.mention-menu-item:hover {
+  background-color: #333;
+}
+
+.mention-menu-item.no-results {
+  color: #ccc;
+  cursor: default;
+}
+
+.mention-highlight {
+  border: 1px solid #ccc;
+  padding: 2px 4px;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+/* styles.css */
+
+/* Add this definition for the highlighted class */
+.highlighted {
+  background-color: #555; /* Change this to a color that stands out */
+  color: #fff; /* Optional: change text color for better visibility */
+}
+
+/* ... existing styles ... */
+  

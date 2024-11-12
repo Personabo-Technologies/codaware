@@ -1,4 +1,25 @@
 // content.js
+const PLATFORMS = {
+  CHATGPT: {
+    hostnames: ['chat.openai.com', 'chatgpt.com'],
+    selectors: {
+      inputField: '#prompt-textarea',
+      sendButton: '[data-testid="send-button"]',
+      editor: '.ProseMirror'
+    },
+    inputFieldType: 'textarea'
+  },
+  CLAUDE: {
+    hostnames: ['claude.ai'],
+    selectors: {
+      inputField: '[contenteditable="true"].ProseMirror',
+      sendButton: 'button[aria-label="Send Message"]',
+      editor: '.ProseMirror'
+    },
+    inputFieldType: 'contenteditable'
+  }
+};
+
 function getFileContents(filePath) {
   filePath = filePath.trim();
   return new Promise((resolve, reject) => {
@@ -91,20 +112,29 @@ function handleKeyUp(event) {
   // Get the current selection
   const selection = window.getSelection();
   const range = selection.getRangeAt(0);
-  currentCursorPosition = range.endOffset;
+  
+  // Get the current node (text node) where the cursor is
+  const currentNode = range.startContainer;
+  
+  // If we're not in a text node, or if we're at a different node than the current line
+  if (currentNode.nodeType !== Node.TEXT_NODE) {
+    removeContextMenu();
+    return;
+  }
 
   // Check if the context menu is open first
   const menu = document.getElementById('mention-context-menu');
   if (menu && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-    // Prevent default behavior immediately
     event.preventDefault();
     event.stopPropagation();
     navigateMenu(event.key);
     return;
   }
 
-  const textContent = inputField.innerText;
-  const textBeforeCursor = textContent.slice(0, currentCursorPosition);
+  // Only look at the text content of the current line (node)
+  const textContent = currentNode.textContent;
+  const cursorPosition = range.startOffset;
+  const textBeforeCursor = textContent.slice(0, cursorPosition);
 
   // Check if the last character is '>'
   const lastIndex = textBeforeCursor.lastIndexOf('>');
@@ -165,9 +195,11 @@ async function showContextMenu(inputField, range, query) {
   // First append the menu so we can get its height
   document.body.appendChild(menu);
 
-  // Position the menu above the input field
+  // Get the input field dimensions
   const inputRect = inputField.getBoundingClientRect();
-  const menuTop = inputRect.top - 20; // Adjust this value to position the menu closer to the input field
+  
+  // Position the menu above the input field, fixed position
+  const menuTop = inputRect.top - 20;
   const menuLeft = inputRect.left;
 
   // Set the menu position using CSS variable
@@ -175,10 +207,9 @@ async function showContextMenu(inputField, range, query) {
   menu.style.left = `${menuLeft}px`;
 
   // Set the width of the menu to match the input field
-  menu.style.width = `${inputRect.width}px`; // Set width to match input field
-  // Set a fixed height for the menu
-  menu.style.height = '150px'; // Fixed height
-  menu.style.overflowY = 'auto'; // Allow scrolling if needed
+  menu.style.width = `${inputRect.width}px`;
+  menu.style.height = '150px';
+  menu.style.overflowY = 'auto';
 
   // Get suggestions
   const suggestions = await getSuggestions(query);
@@ -227,20 +258,22 @@ function insertMentionContent(inputField, suggestion) {
   // Get the current selection and range
   const selection = window.getSelection();
   const range = selection.getRangeAt(0);
-
+  const currentNode = range.startContainer;
+  
   // Find the position of the last '>' symbol before the cursor
-  const textContent = inputField.innerText;
-  const textBeforeCursor = textContent.slice(0, currentCursorPosition); 
+  const textContent = currentNode.textContent;
+  const cursorPosition = range.startOffset;
+  const textBeforeCursor = textContent.slice(0, cursorPosition); 
   const lastArrowIndex = textBeforeCursor.lastIndexOf('>');
 
   // Remove the existing query text 
   const startOffset = lastArrowIndex + 1;
-  const endOffset = currentCursorPosition;
+  const endOffset = cursorPosition;
 
   // Create a new range to replace the text
   const newRange = document.createRange();
-  newRange.setStart(range.startContainer, startOffset);
-  newRange.setEnd(range.endContainer, endOffset);
+  newRange.setStart(currentNode, startOffset);
+  newRange.setEnd(currentNode, endOffset);
   newRange.deleteContents();
 
   // Create a styled span element for the mention
@@ -255,8 +288,13 @@ function insertMentionContent(inputField, suggestion) {
   selection.removeAllRanges();
   selection.addRange(newRange);
 
-  // Trigger an input event to ensure ChatGPT recognizes the change
-  inputField.dispatchEvent(new Event('input', { bubbles: true }));
+  // Platform-specific event dispatch
+  const platform = getCurrentPlatform();
+  const event = platform.inputFieldType === 'contenteditable'
+    ? new InputEvent('input', { bubbles: true, cancelable: true })
+    : new Event('input', { bubbles: true });
+  
+  inputField.dispatchEvent(event);
 }
 
 function removeContextMenu() {
@@ -266,86 +304,119 @@ function removeContextMenu() {
   }
 }
 
+// Updated helper functions
+function getCurrentPlatform() {
+  const currentHostname = window.location.hostname;
+  return Object.values(PLATFORMS).find(platform => 
+    platform.hostnames.some(hostname => 
+      currentHostname.includes(hostname)
+    )
+  );
+}
+
+function getPlatformById(platformId) {
+  return PLATFORMS[platformId];
+}
+
+function getSelectors() {
+  const platform = getCurrentPlatform();
+  return platform ? platform.selectors : null;
+
+}
 // Initialize when the element is found
+// Helper function to process file chips
+async function processFileChips(fileChips) {
+  console.log('Processing file chips:', fileChips.length);
+  return Promise.all(
+    Array.from(fileChips).map(async chip => {
+      const label = chip.textContent.split('×')[0].trim().slice(2).trim();
+      console.log('Requesting content for:', label);
+      try {
+        const content = await getFileContents(label);
+        console.log('Received content for:', label);
+        return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
+      } catch (error) {
+        console.error('Error getting content for', label, error);
+        return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
+      }
+    })
+  );
+}
+
+// Helper function to append file contents to message
+async function appendFileContentsToMessage(fileContents) {
+  const platform = getCurrentPlatform();
+  const editor = document.querySelector(platform.selectors.editor);
+  const currentText = editor.innerText;
+  const newText = `${currentText}\n\nReferenced Files:\n${fileContents.join('\n')}`;
+
+  const lineProcessor = line => `<p>${line || '<br>'}</p>`;
+  editor.innerHTML = newText.split('\n').map(lineProcessor).join('');
+
+  // Dispatch appropriate input event based on platform
+  const event = platform.inputFieldType === 'contenteditable' 
+    ? new InputEvent('input', { bubbles: true, cancelable: true })
+    : new Event('input', { bubbles: true });
+  
+  editor.dispatchEvent(event);
+}
+
+// Helper function to cleanup and send message
+function cleanupAndSendMessage(sendButton, container) {
+  if (container) {
+    container.remove();
+  }
+
+  sendButton.removeAttribute('data-mention-intercepted');
+  setTimeout(() => {
+    sendButton.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    }));
+    sendButton.setAttribute('data-mention-intercepted', 'true');
+  }, 200); // needs delay to update the UI
+}
+
+// Handle send button click
+async function handleSendButtonClick(event, sendButton) {
+  console.log("intercepted submit clicked");
+  event.preventDefault();
+  event.stopPropagation();
+
+  const container = document.getElementById('file-chips-container');
+  const fileChips = container ? container.querySelectorAll('.file-chip') : [];
+
+  if (fileChips.length > 0) {
+    try {
+      const fileContents = await processFileChips(fileChips);
+      await appendFileContentsToMessage(fileContents);
+      await cleanupAndSendMessage(sendButton, container);
+    } catch (error) {
+      console.error('Error processing file contents:', error);
+    }
+  }
+}
+
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
-// Find and observe the send button
-const sendButtonObserver = new MutationObserver(async (mutations, observer) => {
-  const sendButton = document.querySelector('[data-testid="send-button"]');
-  if (sendButton && !sendButton.hasAttribute('data-mention-intercepted')) {
-    sendButton.setAttribute('data-mention-intercepted', 'true');
+  const sendButtonObserver = new MutationObserver(async (mutations, observer) => {
+    const selectors = getSelectors();
+    const sendButton = document.querySelector(selectors.sendButton);
     
-    sendButton.addEventListener('click', async (event) => {
-      if (event.isTrusted && sendButton.hasAttribute('data-mention-intercepted')) {
-        console.log("intercepted submit clicked");
-        event.preventDefault();
-        event.stopPropagation();
-  
-        const container = document.getElementById('file-chips-container');
-        const fileChips = container ? container.querySelectorAll('.file-chip') : [];
-  
-        if (fileChips.length > 0) {
-          try {
-            console.log('Processing file chips:', fileChips.length);
-            // Get contents for all files
-            const fileContents = await Promise.all(
-              Array.from(fileChips).map(async chip => {
-                const label = chip.textContent.split('×')[0].trim().slice(2).trim(); // Remove emoji and trim
-                console.log('Requesting content for:', label);
-                try {
-
-                const content = await getFileContents(label);
-                  console.log('Received content for:', label);
-                return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
-                } catch (error) {
-                  console.error('Error getting content for', label, error);
-                  return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
-                }
-              })
-            );
-  
-            // Append file contents to the message
-            const proseMirrorEditor = document.querySelector('.ProseMirror');
-            const currentText = proseMirrorEditor.innerText;
-            const newText = `${currentText}\n\nReferenced Files:\n${fileContents.join('\n')}`;
-            
-            // Update the ProseMirror editor content
-            proseMirrorEditor.innerHTML = newText
-            .split('\n')
-            .map(line => `<p>${line}</p>`)
-            .join('');
-                        
-            // Clean up the chips container
-            if (container) {
-              container.remove();
-            }
-  
-              // Only after all content is processed, trigger the simulated click
-              sendButton.removeAttribute('data-mention-intercepted');
-              await new Promise(resolve => setTimeout(resolve, 0)); // Give time for state to update
-              
-              // Use native click() method to bypass event listeners
-              sendButton.dispatchEvent(new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true, 
-                view: window
-              }));
-              
-              // Re-add the interceptor
-              sendButton.setAttribute('data-mention-intercepted', 'true');
-  
-          } catch (error) {
-            console.error('Error fetching file contents:', error);
-          }
+    if (sendButton && !sendButton.hasAttribute('data-mention-intercepted')) {
+      sendButton.setAttribute('data-mention-intercepted', 'true');
+      
+      sendButton.addEventListener('click', async (event) => {
+        if (event.isTrusted && sendButton.hasAttribute('data-mention-intercepted')) {
+          handleSendButtonClick(event, sendButton);
+        } else {
+          console.log("skipping intercept submit clicked");
         }
-      } else {
-        console.log("skipping intercept submit clicked")
-      }
-
-    }, true);
-  }
-});
+      }, true);
+    }
+  });
 
 // Start observing for the send button
 sendButtonObserver.observe(document.body, {
@@ -447,8 +518,10 @@ function createFileChip(suggestion) {
 
 // Initialize the observer
 const observer = new MutationObserver(() => {
-  const inputField = document.querySelector('#prompt-textarea');
+  const selectors = getSelectors();
+  if (!selectors) return;
 
+  const inputField = document.querySelector(selectors.inputField);
   if (inputField && !inputField.classList.contains('mention-extension-enabled')) {
     initializeMentionExtension(inputField);
   }

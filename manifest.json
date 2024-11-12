@@ -1,0 +1,28 @@
+{
+    "manifest_version": 3,
+    "name": "ChatGPT Mention Extension",
+    "version": "1.0",
+    "description": "Allows using '>' to bring up options and suggestions in ChatGPT.",
+    "permissions": ["scripting", "activeTab", "storage"],
+		"host_permissions": [
+				"https://chat.openai.com/*",
+				"https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "ws://localhost:8080/*" 
+		],
+    "content_scripts": [
+      {
+		"matches": [
+				"https://chat.openai.com/*",
+				"https://chatgpt.com/*",
+        "https://claude.ai/*"
+		],
+        "js": ["content.js"],
+        "css": ["styles.css"]
+      }
+    ],
+		"background": {
+			"service_worker": "background.js" 
+		}
+  } 
+  
