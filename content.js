@@ -401,6 +401,35 @@ async function handleSendButtonClick(event, sendButton) {
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
+    // Add Claude-specific handling at the input field level
+    if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
+    // Prevent Enter at document level
+    document.addEventListener('keydown', (event) => {
+      console.log("blocking ENTER at document level");
+      const menu = document.getElementById('mention-context-menu');
+      if (menu && event.key === 'Enter') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    }, { capture: true, passive: false });
+
+
+    // Prevent Enter at input field level
+    inputField.addEventListener('keydown', (event) => {
+      console.log("blocking ENTER at element level");
+
+      const menu = document.getElementById('mention-context-menu');
+      if (menu && event.key === 'Enter') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    }, { capture: true, passive: false });
+
+    }
+  
+
   const sendButtonObserver = new MutationObserver(async (mutations, observer) => {
     const selectors = getSelectors();
     const sendButton = document.querySelector(selectors.sendButton);
@@ -424,7 +453,7 @@ sendButtonObserver.observe(document.body, {
   subtree: true
 });
 
-  // Add document-level Enter key interceptor
+if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
   document.addEventListener('keydown', (event) => {
     const menu = document.getElementById('mention-context-menu');
     if (menu && event.key === 'Enter') {
@@ -433,7 +462,7 @@ sendButtonObserver.observe(document.body, {
       return false;
     }
   }, true);
-
+}
   // Update keydown handler with capture phase
   inputField.addEventListener('keydown', async (event) => {
     const menu = document.getElementById('mention-context-menu');
