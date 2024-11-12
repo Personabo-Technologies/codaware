@@ -405,34 +405,29 @@ async function handleSendButtonClick(event, sendButton) {
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
-  // Add Claude-specific handling
+  // Add comprehensive event interception for claude.ai
   if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
-    // Override contenteditable's keydown and beforeinput events
-    inputField.addEventListener('keydown', (event) => {
+    const interceptEnterKey = (event) => {
       const menu = document.getElementById('mention-context-menu');
-      if (event.key === 'Enter') {
+      if (menu && (event.key === 'Enter' || event.inputType === 'insertParagraph')) {
+        console.log(`Intercepted ${event.type} event. Key: ${event.key}, InputType: ${event.inputType}`);
         event.preventDefault();
         event.stopImmediatePropagation();
-        // Also clear any pending composition
+        // Clear any pending composition
         if (window.getSelection) {
           const selection = window.getSelection();
           if (selection.rangeCount > 0) {
             selection.removeAllRanges();
           }
         }
-        return true;
-      }
-    }, { capture: true, passive: false });
-
-    // Also prevent the beforeinput event which might trigger submission
-    inputField.addEventListener('beforeinput', (event) => {
-      const menu = document.getElementById('mention-context-menu');
-      if (event.inputType === 'insertParagraph') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
         return false;
       }
-    }, { capture: true, passive: false });
+    };
+
+    // Intercept keydown, keypress, keyup, beforeinput, and input at the document level
+    ['keydown', 'keypress', 'keyup', 'beforeinput', 'input'].forEach((eventType) => {
+      document.addEventListener(eventType, interceptEnterKey, { capture: true });
+    });
   }
   
 
