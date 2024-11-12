@@ -424,23 +424,31 @@ sendButtonObserver.observe(document.body, {
   subtree: true
 });
 
+  // Add document-level Enter key interceptor
+  document.addEventListener('keydown', (event) => {
+    const menu = document.getElementById('mention-context-menu');
+    if (menu && event.key === 'Enter') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return false;
+    }
+  }, true);
+
   // Update keydown handler with capture phase
   inputField.addEventListener('keydown', async (event) => {
     const menu = document.getElementById('mention-context-menu');
     if (menu) {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
-        event.stopPropagation();
-        return; // Add return to ensure the event handling stops here
+        event.stopImmediatePropagation();
+        return false;
       } else if (event.key === 'Enter') {
-        // Stop the event immediately
+        // Stop the event immediately with all available methods
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
         
-        // If we have menu items
         const menuItems = document.querySelectorAll('.mention-menu-item');
         if (menuItems.length > 0 && currentMenuIndex >= 0) {
-          // Get the currently highlighted item's suggestion data
           const selectedItem = menuItems[currentMenuIndex];
           const suggestionLabel = selectedItem.innerText;
           
@@ -454,11 +462,10 @@ sendButtonObserver.observe(document.body, {
             removeContextMenu();
           }
         }
-        // Add return to ensure no further processing
         return false;
       }
     }
-  }, true); // Add capture phase
+  }, true);
 
   // Keep the keyup handler for other functionality
   inputField.addEventListener('keyup', handleKeyUp);
