@@ -410,7 +410,7 @@ async function initializeMentionExtension(inputField) {
     // Override contenteditable's keydown and beforeinput events
     inputField.addEventListener('keydown', (event) => {
       const menu = document.getElementById('mention-context-menu');
-      if (menu && event.key === 'Enter') {
+      if (event.key === 'Enter') {
         event.preventDefault();
         event.stopImmediatePropagation();
         // Also clear any pending composition
@@ -420,14 +420,14 @@ async function initializeMentionExtension(inputField) {
             selection.removeAllRanges();
           }
         }
-        return false;
+        return true;
       }
     }, { capture: true, passive: false });
 
     // Also prevent the beforeinput event which might trigger submission
     inputField.addEventListener('beforeinput', (event) => {
       const menu = document.getElementById('mention-context-menu');
-      if (menu && event.inputType === 'insertParagraph') {
+      if (event.inputType === 'insertParagraph') {
         event.preventDefault();
         event.stopImmediatePropagation();
         return false;
