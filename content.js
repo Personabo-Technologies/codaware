@@ -401,33 +401,47 @@ async function handleSendButtonClick(event, sendButton) {
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
-    // Add Claude-specific handling at the input field level
-    if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
-    // Prevent Enter at document level
-    document.addEventListener('keydown', (event) => {
-      console.log("blocking ENTER at document level");
-      const menu = document.getElementById('mention-context-menu');
-      if (menu && event.key === 'Enter') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return false;
+  // Add Claude-specific handling
+  if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
+    // Override the contenteditable's keypress and keydown handlers
+    const originalAddEventListener = inputField.addEventListener;
+    inputField.addEventListener = function(type, listener, options) {
+      if ((type === 'keypress' || type === 'keydown') && listener) {
+        const wrappedListener = function(event) {
+          const menu = document.getElementById('mention-context-menu');
+          if (menu && event.key === 'Enter') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return false;
+          }
+          return listener.apply(this, arguments);
+        };
+        return originalAddEventListener.call(this, type, wrappedListener, options);
       }
-    }, { capture: true, passive: false });
+      return originalAddEventListener.call(this, type, listener, options);
+    };
 
-
-    // Prevent Enter at input field level
-    inputField.addEventListener('keydown', (event) => {
-      console.log("blocking ENTER at element level");
-
-      const menu = document.getElementById('mention-context-menu');
-      if (menu && event.key === 'Enter') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return false;
+    // Also capture any existing event listeners
+    const existingListeners = getEventListeners(inputField);
+    if (existingListeners) {
+      for (const type of ['keypress', 'keydown']) {
+        if (existingListeners[type]) {
+          existingListeners[type].forEach(listener => {
+            inputField.removeEventListener(type, listener.listener);
+            inputField.addEventListener(type, (event) => {
+              const menu = document.getElementById('mention-context-menu');
+              if (menu && event.key === 'Enter') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return false;
+              }
+              return listener.listener(event);
+            });
+          });
+        }
       }
-    }, { capture: true, passive: false });
-
     }
+  }
   
 
   const sendButtonObserver = new MutationObserver(async (mutations, observer) => {
