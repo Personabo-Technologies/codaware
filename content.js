@@ -403,44 +403,32 @@ async function initializeMentionExtension(inputField) {
 
   // Add Claude-specific handling
   if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
-    // Override the contenteditable's keypress and keydown handlers
-    const originalAddEventListener = inputField.addEventListener;
-    inputField.addEventListener = function(type, listener, options) {
-      if ((type === 'keypress' || type === 'keydown') && listener) {
-        const wrappedListener = function(event) {
-          const menu = document.getElementById('mention-context-menu');
-          if (menu && event.key === 'Enter') {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            return false;
+    // Override contenteditable's keydown and beforeinput events
+    inputField.addEventListener('keydown', (event) => {
+      const menu = document.getElementById('mention-context-menu');
+      if (menu && event.key === 'Enter') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        // Also clear any pending composition
+        if (window.getSelection) {
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            selection.removeAllRanges();
           }
-          return listener.apply(this, arguments);
-        };
-        return originalAddEventListener.call(this, type, wrappedListener, options);
-      }
-      return originalAddEventListener.call(this, type, listener, options);
-    };
-
-    // Also capture any existing event listeners
-    const existingListeners = getEventListeners(inputField);
-    if (existingListeners) {
-      for (const type of ['keypress', 'keydown']) {
-        if (existingListeners[type]) {
-          existingListeners[type].forEach(listener => {
-            inputField.removeEventListener(type, listener.listener);
-            inputField.addEventListener(type, (event) => {
-              const menu = document.getElementById('mention-context-menu');
-              if (menu && event.key === 'Enter') {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                return false;
-              }
-              return listener.listener(event);
-            });
-          });
         }
+        return false;
       }
-    }
+    }, { capture: true, passive: false });
+
+    // Also prevent the beforeinput event which might trigger submission
+    inputField.addEventListener('beforeinput', (event) => {
+      const menu = document.getElementById('mention-context-menu');
+      if (menu && event.inputType === 'insertParagraph') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    }, { capture: true, passive: false });
   }
   
 
