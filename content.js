@@ -431,6 +431,7 @@ sendButtonObserver.observe(document.body, {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
         event.stopPropagation();
+        return; // Add return to ensure the event handling stops here
       } else if (event.key === 'Enter') {
         // Stop the event immediately
         event.preventDefault();
@@ -443,19 +444,18 @@ sendButtonObserver.observe(document.body, {
           const selectedItem = menuItems[currentMenuIndex];
           const suggestionLabel = selectedItem.innerText;
           
-          // Ensure getSuggestions returns an array and handle potential errors
           const suggestions = await getSuggestions('') || [];
           const suggestion = Array.isArray(suggestions) 
             ? suggestions.find(s => s.label === suggestionLabel)
             : null;
           
-          console.log(selectedItem);
-          console.log(suggestionLabel);
-          if (selectedItem) {
+          if (selectedItem && suggestion) {
             insertMentionContent(inputField, suggestion);
             removeContextMenu();
           }
         }
+        // Add return to ensure no further processing
+        return false;
       }
     }
   }, true); // Add capture phase
