@@ -98,9 +98,10 @@ function getSuggestions(query) {
 }
 
 function shouldShowContextMenu(text, index) {
-  // Ensure there's no whitespace between '>' and the cursor
+  // Ensure there's no immediate text before '>' and check for whitespace before the arrow
+  const textBeforeArrow = text.slice(0, index);
   const textAfterArrow = text.slice(index + 1);
-  return !/\s/.test(textAfterArrow);
+  return !/\S/.test(textBeforeArrow) || /\s/.test(textBeforeArrow) && !/\S/.test(textAfterArrow);
 }
 
 let currentMenuIndex = 0; // Track the currently highlighted menu item
@@ -553,7 +554,7 @@ if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
   }, true);
 
   // Keep the keyup handler for other functionality
-  inputField.addEventListener('keyup', handleKeyUp);
+  //inputField.addEventListener('keyup', handleKeyUp);
 
   // Close context menu on click outside
   document.addEventListener('click', (event) => {
