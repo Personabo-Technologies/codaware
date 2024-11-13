@@ -254,15 +254,18 @@ async function showContextMenu(inputField, range, query) {
   });
 }
 
-async function updateSuggestions(container, query) {
-  container.innerHTML = '';
+async function updateSuggestions(menu, query) {
+  // Remove existing suggestion items
+  menu.innerHTML = '';
+  
+  // Fetch new suggestions
   const suggestions = await getSuggestions(query);
 
   if (suggestions.length === 0) {
     const item = document.createElement('div');
     item.className = 'mention-menu-item no-results';
     item.innerText = 'No results found';
-    container.appendChild(item);
+    menu.appendChild(item);
     return;
   }
 
@@ -280,7 +283,7 @@ async function updateSuggestions(container, query) {
       removeContextMenu();
     });
 
-    container.appendChild(item);
+    menu.appendChild(item);
 
     if (index === currentMenuIndex) {
       item.classList.add('highlighted');
