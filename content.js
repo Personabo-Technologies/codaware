@@ -186,7 +186,7 @@ function handleMenuInputKeyDown(event, menuInput, menu) {
         const suggestion = suggestions.find(s => s.label === suggestionLabel);
         if (suggestion) {
           insertMentionContent(suggestion);
-          removeContextMenu();
+          //removeContextMenu();
         }
       });
     }
@@ -274,7 +274,7 @@ async function updateSuggestions(menu, query) {
 
     item.addEventListener('click', () => {
       insertMentionContent(document.querySelector(getSelectors().inputField), suggestion);
-      removeContextMenu();
+      //removeContextMenu();
     });
 
     menu.appendChild(item);
