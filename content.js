@@ -144,43 +144,53 @@ function handleKeyUp(event) {
   }
 }
 
-function navigateMenu(direction) {
-  const menuItems = document.querySelectorAll('.mention-menu-item');
-  const menu = document.getElementById('mention-context-menu');
-  console.log("menuItem length " + menuItems.length);
+function navigateMenu(direction, menuItems) {
   if (menuItems.length === 0) return;
 
   // Clear previous highlight
-  if (currentMenuIndex >= 0) {
+  if (currentMenuIndex >= 0 && menuItems[currentMenuIndex]) {
     menuItems[currentMenuIndex].classList.remove('highlighted');
   }
 
   // Update the index based on the direction
   if (direction === 'ArrowDown') {
-    currentMenuIndex = (currentMenuIndex + 1) % menuItems.length; // Loop to the start
+    currentMenuIndex = (currentMenuIndex + 1) % menuItems.length;
   } else if (direction === 'ArrowUp') {
-    currentMenuIndex = (currentMenuIndex - 1 + menuItems.length) % menuItems.length; // Loop to the end
+    currentMenuIndex = (currentMenuIndex - 1 + menuItems.length) % menuItems.length;
   }
-
-  console.log("Current menu index: " + currentMenuIndex);
 
   // Highlight the current menu item
   const currentItem = menuItems[currentMenuIndex];
   currentItem.classList.add('highlighted');
 
   // Scroll the highlighted item into view
-  const itemHeight = currentItem.offsetHeight;
-  const menuHeight = menu.offsetHeight;
-  const itemTop = currentItem.offsetTop;
-  const scrollTop = menu.scrollTop;
+  currentItem.scrollIntoView({ block: 'nearest' });
+}
 
-  // If item is below visible area
-  if (itemTop + itemHeight > scrollTop + menuHeight) {
-    menu.scrollTop = itemTop + itemHeight - menuHeight;
-  }
-  // If item is above visible area
-  else if (itemTop < scrollTop) {
-    menu.scrollTop = itemTop;
+function handleMenuInputKeyDown(event, menuInput, menu) {
+  const menuItems = menu.querySelectorAll('.mention-menu-item');
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    navigateMenu('ArrowDown', menuItems);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    navigateMenu('ArrowUp', menuItems);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    if (currentMenuIndex >= 0 && menuItems[currentMenuIndex]) {
+      const selectedItem = menuItems[currentMenuIndex];
+      const suggestionLabel = selectedItem.innerText;
+      getSuggestions('').then((suggestions) => {
+        const suggestion = suggestions.find(s => s.label === suggestionLabel);
+        if (suggestion) {
+          insertMentionContent(suggestion);
+          removeContextMenu();
+        }
+      });
+    }
+  } else if (event.key === 'Escape') {
+    removeContextMenu();
   }
 }
 
@@ -232,25 +242,8 @@ async function showContextMenu(inputField, range, query) {
     await updateSuggestions(suggestionsContainer, event.target.value);
   });
 
-  menuInput.addEventListener('keydown', async (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const highlighted = suggestionsContainer.querySelector('.highlighted');
-      if (highlighted) {
-        const suggestionLabel = highlighted.innerText;
-        const suggestions = await getSuggestions('');
-        const suggestion = suggestions.find(s => s.label === suggestionLabel);
-        if (suggestion) {
-          insertMentionContent(inputField, suggestion);
-          removeContextMenu();
-        }
-      }
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      navigateMenu(event.key);
-    } else if (event.key === 'Escape') {
-      removeContextMenu();
-    }
+  menuInput.addEventListener('keydown', (event) => {
+    handleMenuInputKeyDown(event, menuInput, menu);
   });
 }
 
