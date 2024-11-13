@@ -352,6 +352,9 @@ function removeContextMenu() {
   const existingMenu = document.getElementById('mention-context-menu');
   if (existingMenu) {
     existingMenu.parentNode.removeChild(existingMenu);
+    // Return focus to the original input field
+    const inputField = getInputField();
+    inputField.focus();
   }
 }
 
@@ -452,6 +455,17 @@ async function handleSendButtonClick(event, sendButton) {
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
+  inputField.addEventListener('keydown', (event) => {
+    const menu = document.getElementById('mention-context-menu');
+    if (menu) {
+      // Prevent events from reaching the input field when the menu is open
+      event.stopImmediatePropagation();
+      return;
+    }
+  }, true);
+
+  inputField.addEventListener('keyup', handleKeyUp, true);
+
   // Add comprehensive event interception for claude.ai
   if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
     const interceptEnterKey = (event) => {
@@ -550,7 +564,8 @@ if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
 
   // Close context menu on click outside
   document.addEventListener('click', (event) => {
-    if (!event.target.closest('#mention-context-menu')) {
+    const menu = document.getElementById('mention-context-menu');
+    if (menu && !menu.contains(event.target)) {
       removeContextMenu();
     }
   });
