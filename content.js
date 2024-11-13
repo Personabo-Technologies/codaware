@@ -116,13 +116,6 @@ function handleKeyUp(event) {
   // Get the current node (text node) where the cursor is
   const currentNode = range.startContainer;
   
-  // If we're not in a text node, or if we're at a different node than the current line
-  if (currentNode.nodeType !== Node.TEXT_NODE) {
-    console.log('Current node is not a text node. Removing context menu.');
-    removeContextMenu();
-    return;
-  }
-
   // Check if the context menu is open first
   const menu = document.getElementById('mention-context-menu');
   if (menu && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
@@ -141,6 +134,7 @@ function handleKeyUp(event) {
   // Check if the last character is '>'
   const lastIndex = textBeforeCursor.lastIndexOf('>');
   if (lastIndex !== -1 && shouldShowContextMenu(textBeforeCursor, lastIndex)) {
+    console.log("should show context menu")
     const query = textBeforeCursor.slice(lastIndex + 1);
     console.log(`Triggering context menu with query: ${query.trim()}`);
     showContextMenu(inputField, range, query.trim());
@@ -223,6 +217,8 @@ async function showContextMenu(inputField, range, query) {
   menu.style.width = `${inputRect.width}px`;
   menu.style.maxHeight = '200px';
   menu.style.overflowY = 'auto';
+  menu.style.border = '1px solid #ccc';
+  menu.style.zIndex = '1000';
 
   // Focus on the menu input
   menuInput.focus();
@@ -607,10 +603,3 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
-
-// Global event logging to debug event flow
-['keydown', 'keypress', 'keyup', 'beforeinput', 'input'].forEach(eventType => {
-  document.addEventListener(eventType, (event) => {
-    console.log(`Global Event Listener - Event: ${eventType}, Key: ${event.key}, InputType: ${event.inputType}`);
-  }, true);
-});

@@ -57,5 +57,13 @@
   color: #fff; /* Optional: change text color for better visibility */
 }
 
-/* ... existing styles ... */
+.menu-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  outline: none;
+  background-color: inherit ! important;
+}
   
