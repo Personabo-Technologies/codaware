@@ -321,10 +321,10 @@ function insertMentionContent(suggestion) {
   newRange.setEnd(currentNode, endOffset);
   newRange.deleteContents();
 
-  // Create a styled span element for the mention
+  // Create a styled span element for the mention with 'File: ' prefix
   const mentionSpan = document.createElement('span');
   mentionSpan.className = 'mention-highlight';
-  mentionSpan.innerText = suggestion.label + ' ';
+  mentionSpan.innerText = `File: ${suggestion.label} `; // Added 'File: ' prefix and space
   newRange.insertNode(mentionSpan);
 
   // Move the cursor after the inserted text
@@ -340,6 +340,9 @@ function insertMentionContent(suggestion) {
     : new Event('input', { bubbles: true });
   
   inputField.dispatchEvent(event);
+  
+  // Close the context menu after inserting the chip
+  removeContextMenu();
 }
 
 function removeContextMenu() {
