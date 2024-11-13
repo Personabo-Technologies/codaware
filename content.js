@@ -98,10 +98,19 @@ function getSuggestions(query) {
 }
 
 function shouldShowContextMenu(text, index) {
-  // Ensure there's no immediate text before '>' and check for whitespace before the arrow
+  // Extract text before and after the '>' character
   const textBeforeArrow = text.slice(0, index);
   const textAfterArrow = text.slice(index + 1);
-  return !/\S/.test(textBeforeArrow) || /\s/.test(textBeforeArrow) && !/\S/.test(textAfterArrow);
+
+  // Check if there's no non-whitespace character after '>'
+  const noTrailingString = !/\S/.test(textAfterArrow);
+
+  // Check if the '>' is at the start or immediately preceded by a whitespace
+  const hasWhiteSpaceImmediatelyBefore =
+    index === 0 || /\s/.test(text[index - 1]);
+
+  // Decide whether to show the context menu
+  return noTrailingString && hasWhiteSpaceImmediatelyBefore;
 }
 
 let currentMenuIndex = 0; // Track the currently highlighted menu item
@@ -134,7 +143,8 @@ function handleKeyUp(event) {
 
   // Check if the last character is '>'
   const lastIndex = textBeforeCursor.lastIndexOf('>');
-  if (lastIndex !== -1 && shouldShowContextMenu(textBeforeCursor, lastIndex)) {
+  const shouldShowFileSuggestions = shouldShowContextMenu(textBeforeCursor, lastIndex);
+  if (lastIndex !== -1 && shouldShowFileSuggestions) {
     console.log("should show context menu")
     const query = textBeforeCursor.slice(lastIndex + 1);
     console.log(`Triggering context menu with query: ${query.trim()}`);
@@ -178,6 +188,7 @@ function handleMenuInputKeyDown(event, menuInput, menu) {
     event.preventDefault();
     navigateMenu('ArrowUp', menuItems);
   } else if (event.key === 'Enter') {
+    console.log("Captured Enter inside FileMenu")
     event.preventDefault();
     if (currentMenuIndex >= 0 && menuItems[currentMenuIndex]) {
       const selectedItem = menuItems[currentMenuIndex];
@@ -300,46 +311,24 @@ function insertMentionContent(suggestion) {
   const chip = createFileChip(suggestion);
   container.appendChild(chip);
 
-  // Get the current selection and range
-  const selection = window.getSelection();
-  const range = selection.getRangeAt(0);
-  const currentNode = range.startContainer;
-  
-  // Find the position of the last '>' symbol before the cursor
-  const textContent = currentNode.textContent;
-  const cursorPosition = range.startOffset;
-  const textBeforeCursor = textContent.slice(0, cursorPosition); 
-  const lastArrowIndex = textBeforeCursor.lastIndexOf('>');
+  // Check if the last character is '>' and remove it
+  const currentText = inputField.value || inputField.innerText; // Get current text
+  if (currentText.endsWith('>')) {
+    if (inputField.value) {
+      inputField.value = currentText.slice(0, -1); // For textarea
+    } else {
+      //TODO: Claude.ai bug where setting the innerText cause prosemirror to break. Doesn't break on chatgpt
+      inputField.innerText = currentText.slice(0, -1); // For contenteditable
+    }
+  }
 
-  // Remove the existing query text 
-  const startOffset = lastArrowIndex + 1;
-  const endOffset = cursorPosition;
-
-  // Create a new range to replace the text
-  const newRange = document.createRange();
-  newRange.setStart(currentNode, startOffset);
-  newRange.setEnd(currentNode, endOffset);
-  newRange.deleteContents();
-
-  // Create a styled span element for the mention with 'File: ' prefix
-  const mentionSpan = document.createElement('span');
-  mentionSpan.className = 'mention-highlight';
-  mentionSpan.innerText = `File: ${suggestion.label} `; // Added 'File: ' prefix and space
-  newRange.insertNode(mentionSpan);
-
-  // Move the cursor after the inserted text
-  newRange.setStartAfter(mentionSpan);
-  newRange.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(newRange);
-
-  // Platform-specific event dispatch
-  const platform = getCurrentPlatform();
-  const event = platform.inputFieldType === 'contenteditable'
-    ? new InputEvent('input', { bubbles: true, cancelable: true })
-    : new Event('input', { bubbles: true });
-  
-  inputField.dispatchEvent(event);
+    // Set cursor position to the end of the input field
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.selectNodeContents(inputField);
+    range.collapse(false); // Collapse to the end
+    selection.removeAllRanges();
+    selection.addRange(range);
   
   // Close the context menu after inserting the chip
   removeContextMenu();
@@ -455,40 +444,20 @@ async function initializeMentionExtension(inputField) {
   inputField.addEventListener('keydown', (event) => {
     const menu = document.getElementById('mention-context-menu');
     if (menu) {
+      console.log("preventing propagation")
       // Prevent events from reaching the input field when the menu is open
       event.stopImmediatePropagation();
       return;
     }
+    // Check for Escape key
+    if (event.key === 'Escape') {
+      removeContextMenu();
+      event.preventDefault(); // Prevent default action if necessary
+      return; // Exit the function
+    }
   }, true);
 
   inputField.addEventListener('keyup', handleKeyUp, true);
-
-  // Add comprehensive event interception for claude.ai
-  if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
-    const interceptEnterKey = (event) => {
-      const menu = document.getElementById('mention-context-menu');
-      if (true && (event.key === 'Enter' || event.inputType === 'insertParagraph')) {
-        inputField.blur();
-        console.log(`Intercepted ${event.type} event. Key: ${event.key}, InputType: ${event.inputType}`);
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        // Clear any pending composition
-        if (window.getSelection) {
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            selection.removeAllRanges();
-          }
-        }
-        return false;
-      }
-    };
-
-    // Intercept keydown, keypress, keyup, beforeinput, and input at the document level
-    ['keydown', 'keypress', 'keyup', 'beforeinput', 'input'].forEach((eventType) => {
-      document.addEventListener(eventType, interceptEnterKey, { capture: true });
-    });
-  }
-  
 
   const sendButtonObserver = new MutationObserver(async (mutations, observer) => {
     const selectors = getSelectors();
@@ -512,17 +481,6 @@ sendButtonObserver.observe(document.body, {
   childList: true,
   subtree: true
 });
-
-if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
-  document.addEventListener('keydown', (event) => {
-    const menu = document.getElementById('mention-context-menu');
-    if (menu && event.key === 'Enter') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      return false;
-    }
-  }, true);
-}
   // Update keydown handler with capture phase
   inputField.addEventListener('keydown', async (event) => {
     const menu = document.getElementById('mention-context-menu');
@@ -532,6 +490,7 @@ if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
         event.stopImmediatePropagation();
         return false;
       } else if (event.key === 'Enter') {
+        console.log("captured enter inside inputfield keydown")
         // Stop the event immediately with all available methods
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -567,7 +526,6 @@ if (getCurrentPlatform()?.hostnames.includes('claude.ai')) {
     }
   });
 }
-
 // Add functions to create and manage chips
 function createChipsContainer(inputField) {
   let container = document.getElementById('file-chips-container');
@@ -592,7 +550,7 @@ function createFileChip(suggestion) {
   chip.style.cssText = `
     background: #2A2B32;
     border: 1px solid #565869;
-    border-radius: 4px;
+    border-radius: 10px;
     padding: 4px 8px;
     font-size: 12px;
     display: flex;
@@ -625,3 +583,4 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+
