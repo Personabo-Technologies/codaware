@@ -291,7 +291,14 @@ async function updateSuggestions(menu, query) {
   });
 }
 
-function insertMentionContent(inputField, suggestion) {
+function getInputField() {
+  const selectors = getSelectors();
+  return document.querySelector(selectors.inputField);
+}
+
+function insertMentionContent(suggestion) {
+  const inputField = getInputField();
+
   // Create or get the chips container
   const container = createChipsContainer(inputField);
   
