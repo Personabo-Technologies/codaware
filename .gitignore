@@ -1,3 +1,19 @@
+node_modules
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment directories
+venv/
+env/
+
+# Distribution and build directories
+build/
+dist/
+
+
 .aider*
 .env
 easycode.ignore
