@@ -20,45 +20,49 @@ const PLATFORMS = {
   }
 };
 
-function getFileContents(filePath) {
+async function getFileContents(filePath, retryCount = 3) {
   filePath = filePath.trim();
-  return new Promise((resolve, reject) => {
-    console.log('Sending request for file:', filePath);
-    
-    // Add timeout to prevent hanging
-    const timeout = setTimeout(() => {
-      reject(new Error(`Timeout requesting file: ${filePath}`));
-    }, 10000); // 10 second timeout
-
-    chrome.runtime.sendMessage(
-      { type: 'GET_FILE_CONTENTS', filePath },
-      response => {
-        clearTimeout(timeout);
+  
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        console.log(`Attempt ${attempt}: Sending request for file:`, filePath);
         
-        // Check for runtime errors first
-        if (chrome.runtime.lastError) {
-          console.error('Runtime error:', chrome.runtime.lastError);
-          reject(chrome.runtime.lastError);
-          return;
-        }
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timeout requesting file: ${filePath}`));
+        }, 10000);
 
-        // Check if response exists
-        if (!response) {
-          console.error('No response received for:', filePath);
-          reject(new Error('No response received'));
-          return;
-        }
+        chrome.runtime.sendMessage(
+          { type: 'GET_FILE_CONTENTS', filePath },
+          response => {
+            clearTimeout(timeout);
+            
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+              return;
+            }
 
-        if (response.error) {
-          console.error('Error in response:', response.error);
-          reject(new Error(response.error));
-        } else {
-          console.log('Received response for:', filePath);
-          resolve(response.content);
-        }
+            if (!response) {
+              reject(new Error('No response received'));
+              return;
+            }
+
+            if (response.error) {
+              reject(new Error(response.error));
+            } else {
+              resolve(response.content);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      if (attempt === retryCount) {
+        throw error;
       }
-    );
-  });
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
 }
 
 function getSuggestions(query) {
@@ -570,6 +574,103 @@ function createFileChip(suggestion) {
   
   return chip;
 }
+
+// Function to add button to code blocks
+function addCodeBlockButton(codeBlock) {
+  if (codeBlock.dataset.buttonAdded) return;
+
+  // Find the existing sticky div containing the Copy Code button
+  const stickyDiv = codeBlock.closest('pre').querySelector('.sticky');
+  if (!stickyDiv) return;
+
+  // Create log button
+  const applyButton = document.createElement('button');
+  applyButton.innerHTML = '📋 Apply Change';
+  applyButton.style.cssText = `
+    padding: 4px 8px;
+    background: #2A2B32;
+    border: 1px solid #565869;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 8px; /* Add space between buttons */
+  `;
+
+  applyButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let code = codeBlock.textContent;
+    console.log('Code block content:', code);
+    
+    const applyDestination = `client/src/shared/utils/toast.js`;
+
+    // Send message to background script with both filename and code
+    chrome.runtime.sendMessage({
+      type: 'APPLY_DIFF',
+      fileName: applyDestination,
+      code: code  // Include the code to be applied
+    }, (response) => {
+      if (response.error) {
+        console.error('Error applying changes:', response.error);
+        // Handle error case
+      } else {
+        console.log('Changes applied successfully:', response.output);
+        alert('change applied successfully');
+        // Handle success case
+      }
+    });
+  });
+
+  // Find the button container within the sticky div
+  const buttonContainer = stickyDiv.firstChild || stickyDiv;
+  
+  // Insert at the beginning of the container
+  buttonContainer.prepend(applyButton);
+
+  // Mark as processed
+  codeBlock.dataset.buttonAdded = 'true';
+}
+
+// Rest of the code remains the same
+function addButtonsToCodeBlocks() {
+  const codeBlocks = document.querySelectorAll('pre code');
+  codeBlocks.forEach((codeBlock) => {
+    if (!codeBlock.dataset.buttonAdded) {
+      addCodeBlockButton(codeBlock);
+    }
+  });
+}
+
+const codeBlockObserver = new MutationObserver((mutations) => {
+  mutations.forEach(mutation => {
+    if (mutation.type === 'childList') {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.matches('pre code')) {
+            addCodeBlockButton(node);
+          }
+          const codeBlocks = node.querySelectorAll('pre code');
+          codeBlocks.forEach(codeBlock => {
+            if (!codeBlock.dataset.buttonAdded) {
+              addCodeBlockButton(codeBlock);
+            }
+          });
+        }
+      });
+    }
+  });
+});
+
+// Start observing with the correct configuration
+codeBlockObserver.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
+document.addEventListener('DOMContentLoaded', addButtonsToCodeBlocks);
+setTimeout(addButtonsToCodeBlocks, 1000);
+setInterval(addButtonsToCodeBlocks, 2000);
 
 // Initialize the observer
 const observer = new MutationObserver(() => {
