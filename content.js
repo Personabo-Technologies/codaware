@@ -1,4 +1,5 @@
 // content.js
+
 const PLATFORMS = {
   CHATGPT: {
     hostnames: ['chat.openai.com', 'chatgpt.com'],
@@ -120,7 +121,7 @@ function shouldShowContextMenu(text, index) {
 let currentMenuIndex = 0; // Track the currently highlighted menu item
 
 function handleKeyUp(event) {
-  console.log(`handleKeyUp called. Key: ${event.key}`);
+  //console.log(`handleKeyUp called. Key: ${event.key}`);
   const inputField = event.target;
 
   // Get the current selection
@@ -149,12 +150,12 @@ function handleKeyUp(event) {
   const lastIndex = textBeforeCursor.lastIndexOf('>');
   const shouldShowFileSuggestions = shouldShowContextMenu(textBeforeCursor, lastIndex);
   if (lastIndex !== -1 && shouldShowFileSuggestions) {
-    console.log("should show context menu")
+    //console.log("should show context menu")
     const query = textBeforeCursor.slice(lastIndex + 1);
-    console.log(`Triggering context menu with query: ${query.trim()}`);
+    //console.log(`Triggering context menu with query: ${query.trim()}`);
     showContextMenu(inputField, range, query.trim());
   } else {
-    console.log('No context menu trigger found. Removing context menu.');
+    // console.log('No context menu trigger found. Removing context menu.');
     removeContextMenu();
   }
 }
@@ -305,37 +306,102 @@ function getInputField() {
   return document.querySelector(selectors.inputField);
 }
 
-function insertMentionContent(suggestion) {
-  const inputField = getInputField();
+// Add a cache object to store file contents
+const fileContentCache = {};
 
-  // Create or get the chips container
+// Modify insertMentionContent to fetch and cache content immediately
+async function insertMentionContent(suggestion) {
+  const inputField = getInputField();
   const container = createChipsContainer(inputField);
   
-  // Add the new chip
+  // CHANGE: Create and add chip immediately
   const chip = createFileChip(suggestion);
   container.appendChild(chip);
 
-  // Check if the last character is '>' and remove it
-  const currentText = inputField.value || inputField.innerText; // Get current text
+  if (!(suggestion.label in fileContentCache) && suggestion.type !== 'folder') {
+    getFileContents(suggestion.label.slice(1))
+      .then(content => {
+        fileContentCache[suggestion.label] = content; // Use object notation
+      })
+      .catch(error => {
+        console.error('Error caching file content:', error);
+      });
+  }
+
+  // Clean up '>' character if present
+  const currentText = inputField.value || inputField.innerText;
   if (currentText.endsWith('>')) {
     if (inputField.value) {
-      inputField.value = currentText.slice(0, -1); // For textarea
+      inputField.value = currentText.slice(0, -1);
     } else {
-      //TODO: Claude.ai bug where setting the innerText cause prosemirror to break. Doesn't break on chatgpt
-      inputField.innerText = currentText.slice(0, -1); // For contenteditable
+      inputField.innerText = currentText.slice(0, -1);
     }
   }
 
-    // Set cursor position to the end of the input field
-    const range = document.createRange();
-    const selection = window.getSelection();
-    range.selectNodeContents(inputField);
-    range.collapse(false); // Collapse to the end
-    selection.removeAllRanges();
-    selection.addRange(range);
-  
-  // Close the context menu after inserting the chip
+  // Set cursor position
+  const range = document.createRange();
+  const selection = window.getSelection();
+  range.selectNodeContents(inputField);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
   removeContextMenu();
+}
+
+// Modify processFileChips to use cached content
+async function processFileChips(fileChips) {
+  return Promise.all(
+    Array.from(fileChips).map(async chip => {
+      const label = chip.textContent.split('×')[0].trim().slice(2).trim();
+
+      try {
+        // CHANGE: Use object notation to access cached content
+        let content = fileContentCache[label];
+        if (!content) {
+          content = await getFileContents(label);
+          fileContentCache[label] = content; // Store using object notation
+          console.log("Initial file retrieval");
+        } else {
+          console.log("Cached file retrieval");
+        }
+        return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
+      } catch (error) {
+        console.error('Error getting content for', label, error);
+        return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
+      }
+    })
+  );
+}
+
+// Clear cache when chip is removed
+function createFileChip(suggestion) {
+  const chip = document.createElement('div');
+  chip.className = 'file-chip';
+  chip.style.cssText = `
+    background: #2A2B32;
+    border: 1px solid #565869;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  `;
+  
+  const icon = suggestion.type === 'folder' ? '📁' : '📄';
+  chip.textContent = `${icon} ${suggestion.label}`;
+  
+  const removeBtn = document.createElement('span');
+  removeBtn.textContent = '×';
+  removeBtn.style.marginLeft = '4px';
+  removeBtn.style.cursor = 'pointer';
+  removeBtn.onclick = () => {
+    chip.remove();
+  };
+  chip.appendChild(removeBtn);
+  
+  return chip;
 }
 
 function removeContextMenu() {
@@ -369,23 +435,23 @@ function getSelectors() {
 }
 // Initialize when the element is found
 // Helper function to process file chips
-async function processFileChips(fileChips) {
-  console.log('Processing file chips:', fileChips.length);
-  return Promise.all(
-    Array.from(fileChips).map(async chip => {
-      const label = chip.textContent.split('×')[0].trim().slice(2).trim();
-      console.log('Requesting content for:', label);
-      try {
-        const content = await getFileContents(label);
-        console.log('Received content for:', label);
-        return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
-      } catch (error) {
-        console.error('Error getting content for', label, error);
-        return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
-      }
-    })
-  );
-}
+// async function processFileChips(fileChips) {
+//   console.log('Processing file chips:', fileChips.length);
+//   return Promise.all(
+//     Array.from(fileChips).map(async chip => {
+//       const label = chip.textContent.split('×')[0].trim().slice(2).trim();
+//       console.log('Requesting content for:', label);
+//       try {
+//         const content = await getFileContents(label);
+//         console.log('Received content for:', label);
+//         return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
+//       } catch (error) {
+//         console.error('Error getting content for', label, error);
+//         return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
+//       }
+//     })
+//   );
+// }
 
 // Helper function to append file contents to message
 async function appendFileContentsToMessage(fileContents) {
@@ -548,6 +614,7 @@ function createChipsContainer(inputField) {
   return container;
 }
 
+// Clear cache when chip is removed
 function createFileChip(suggestion) {
   const chip = document.createElement('div');
   chip.className = 'file-chip';
@@ -573,6 +640,30 @@ function createFileChip(suggestion) {
   chip.appendChild(removeBtn);
   
   return chip;
+}
+
+function predictApplyDestination(code, filesList) {
+  if (!code) {
+    return "ERROR: NO CODE PROVIDED";
+  }
+  if (!filesList) {
+    filesList = fileContentCache;
+  }
+  if (Object.keys(filesList).length === 0) {
+    return "ERROR: NO FILES AVAILABLE FOR MATCHING";
+  }
+
+  try {
+    // Use findBestMatch to predict the destination
+    const bestMatch = findBestMatch(code, filesList);
+    console.log('Best matching file:', bestMatch);
+    return bestMatch;
+  } catch (error) {
+    console.error('Error in predictApplyDestination:', error);
+    return "ERROR: MATCHING FAILED";
+  }
+
+  //return `client/src/shared/utils/toast.js`;
 }
 
 // Function to add button to code blocks
@@ -603,23 +694,41 @@ function addCodeBlockButton(codeBlock) {
     let code = codeBlock.textContent;
     console.log('Code block content:', code);
     
-    const applyDestination = `client/src/shared/utils/toast.js`;
+    //const applyDestination = `client/src/shared/utils/toast.js`;
+    const similarityScores = predictApplyDestination(code);
+    const applyDestination = similarityScores.reduce((best, current) =>
+      current.score > best.score ? current : best
+    );
 
-    // Send message to background script with both filename and code
-    chrome.runtime.sendMessage({
-      type: 'APPLY_DIFF',
-      fileName: applyDestination,
-      code: code  // Include the code to be applied
-    }, (response) => {
-      if (response.error) {
-        console.error('Error applying changes:', response.error);
-        // Handle error case
-      } else {
-        console.log('Changes applied successfully:', response.output);
-        alert('change applied successfully');
-        // Handle success case
-      }
-    });
+    // Format similarity scores for display
+    const scoresText = similarityScores
+      .sort((a, b) => b.score - a.score) // Sort descending
+      .map(entry => `${entry.fileName}: ${(entry.score * 100).toFixed(1)}%`)
+      .join('\n');
+    
+    // Show confirmation dialog
+    const confirmMessage = `Do you want to apply changes to:\n${applyDestination.fileName}\n\nAll matches:\n${scoresText}`;
+    
+    if (confirm(confirmMessage)) {
+            //Send message to background script with both filename and code
+      chrome.runtime.sendMessage({
+        type: 'APPLY_DIFF',
+        fileName: `.${applyDestination.fileName}`,
+        code: code  // Include the code to be applied
+      }, (response) => {
+        if (response.error) {
+          console.error('Error applying changes:', response.error);
+          // Handle error case
+        } else {
+          console.log('Changes applied successfully:', response.output);
+          alert('change applied successfully');
+          // Handle success case
+        }
+      });
+    } else {
+        console.log('NAY');
+    }
+
   });
 
   // Find the button container within the sticky div
