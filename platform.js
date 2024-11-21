@@ -7,7 +7,8 @@ const PLATFORMS = {
         sendButton: '[data-testid="send-button"]',
         editor: '.ProseMirror',
         codeBlock: 'pre code',
-        codeBlockContainer: '.sticky'
+        codeBlockContainer: '.sticky',
+        codeActionButtonContainer: 'pre' // Added closest selector for ChatGPT
       },
       inputFieldType: 'textarea',
       buttonStyle: {
@@ -32,7 +33,8 @@ const PLATFORMS = {
         sendButton: 'button[aria-label="Send Message"]',
         editor: '.ProseMirror',
         codeBlock: '.code-block__code',
-        codeBlockContainer: '.flex.flex-1.items-center.justify-end'
+        codeBlockContainer: '.flex.flex-1.items-center.justify-end',
+        codeActionButtonContainer: 'div[class="bg-bg-000 flex h-full flex-col"]' // Added closest selector for Claude
       },
       inputFieldType: 'contenteditable',
       buttonStyle: {

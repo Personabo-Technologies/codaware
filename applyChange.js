@@ -1,31 +1,17 @@
-
 // Function to add button to code blocks
 function addCodeBlockButton(codeBlock) {
     if (codeBlock.dataset.buttonAdded) return;
   
     const platform = getCurrentPlatform();
     if (!platform) return;
+    const selectors = platform.selectors;
   
-    // For ChatGPT
-    if (codeBlock.matches('pre code')) {
-      const stickyDiv = codeBlock.closest('pre').querySelector('.sticky');
-      if (!stickyDiv) return;
-      
-      const applyButton = document.createElement('button');
-      applyButton.innerHTML = platform.buttonStyle.icon;
-      applyButton.style.cssText = platform.buttonStyle.button;
-      
-      const buttonContainer = stickyDiv.firstChild || stickyDiv;
-      buttonContainer.prepend(applyButton);
-      
-      setupButtonClickHandler(applyButton, codeBlock);
-    }
-    // For Claude
-    else if (codeBlock.matches('.code-block__code')) {
-      const containerDiv = codeBlock.closest('div[class="bg-bg-000 flex h-full flex-col"]');
+    // For both ChatGPT and Claude
+    if (codeBlock.matches(selectors.codeBlock)) {
+      const containerDiv = codeBlock.closest(selectors.codeActionButtonContainer);
       if (!containerDiv) return;
       
-      let buttonContainer = containerDiv.querySelector('.flex.flex-1.items-center.justify-end');
+      let buttonContainer = containerDiv.querySelector(`.${platform.buttonStyle.container}`);
       if (!buttonContainer) {
           buttonContainer = document.createElement('div');
           buttonContainer.className = platform.buttonStyle.container;
@@ -33,28 +19,35 @@ function addCodeBlockButton(codeBlock) {
       }
   
       const applyButton = document.createElement('button');
-      applyButton.className = platform.buttonStyle.button;
+      if (platform === PLATFORMS.CHATGPT) {
+        applyButton.style.cssText = platform.buttonStyle.button;
+      } else if (platform == PLATFORMS.CLAUDE) {
+        applyButton.className = platform.buttonStyle.button;
+      }
       applyButton.innerHTML = platform.buttonStyle.icon;
       
-      buttonContainer.insertBefore(applyButton, buttonContainer.firstChild);
+      const targetContainer = buttonContainer.firstChild || buttonContainer;
+      targetContainer.prepend(applyButton);
+      
       setupButtonClickHandler(applyButton, codeBlock);
     }
   
     codeBlock.dataset.buttonAdded = 'true';
-  }
+}
 
-  // Helper function for button click handler
+// Helper function for button click handler
 function setupButtonClickHandler(button, codeBlock) {
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       
-      let code;
-      if (codeBlock.matches('.code-block__code')) {
-        code = codeBlock.querySelector('code').textContent;
-      } else {
-        code = codeBlock.textContent;
-      }
+      const platform = getCurrentPlatform();
+      const selectors = platform.selectors;
+
+      // Extract code content using platform-specific selectors
+      const code = codeBlock.matches(selectors.codeBlock) && codeBlock.querySelector('code') 
+        ? codeBlock.querySelector('code').textContent 
+        : codeBlock.textContent;
       
       console.log('Code block content:', code);
       
@@ -65,7 +58,7 @@ function setupButtonClickHandler(button, codeBlock) {
   
       // Format similarity scores for display
       const scoresText = similarityScores
-        .sort((a, b) => b.score - a.score) // Sort descending
+        .sort((a, b) => b.score - a.score)
         .map(entry => `${entry.fileName}: ${(entry.score * 100).toFixed(1)}%`)
         .join('\n');
       
@@ -73,25 +66,20 @@ function setupButtonClickHandler(button, codeBlock) {
       const confirmMessage = `Do you want to apply changes to:\n${applyDestination.fileName}\n\nAll matches:\n${scoresText}`;
       
       if (confirm(confirmMessage)) {
-              //Send message to background script with both filename and code
         chrome.runtime.sendMessage({
           type: 'APPLY_DIFF',
           fileName: `.${applyDestination.fileName}`,
-          code: code  // Include the code to be applied
+          code: code
         }, (response) => {
           if (response.error) {
             console.error('Error applying changes:', response.error);
-            // Handle error case
+            alert('Failed to apply changes: ' + response.error);
           } else {
             console.log('Changes applied successfully:', response.output);
-            alert('change applied successfully');
-            // Handle success case
+            alert('Changes applied successfully');
           }
         });
-      } else {
-          console.log('NAY');
       }
-  
     });
   }
 
@@ -107,5 +95,4 @@ function addButtonsToCodeBlocks() {
         addCodeBlockButton(codeBlock, platform);
       }
     });
-  }
-  
+  } 
