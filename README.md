@@ -12,20 +12,23 @@ Chat with Codebase from ChatGPT Web or Claude.ai
 - [ ] add ability to drag a folder and parse the file path, and fetch the files.. [Medium]
 - [x] ability to apply changes directly from ChatGPT 
     - [ ] send user query to aider as well when applying changes
-- [ ] ability to apply changes directly from Claude -> DO THIS NEXT [Easy]
+- [x] ability to apply changes directly from Claude -> DO THIS NEXT [Easy]
+- [ ] 🛑 populate filecache for previous chats.
+- [ ] send file updates from vscode to browser.
 - [ ] compare answer with different models such as DeepSeek, Qwen, Llama 3, etc. [Hard]
 - [ ] add ability to watch for errors in console, auto suggest it in the web browser [Medium?]
 
 ## Bugs
-- [ ] hitting ENTER sends question without injecting file content [Medium]
+- [ ] 🛑 hitting ENTER sends question without injecting file content [Medium]
 - [x] Error loading files sometimes
 - [ ] socket error sometimes [Tiny]
 - [ ] prevent duplicated files from being added.  [Tiny]
 
 ## Improvements
 - [ ] refactor front end into more modular components [Medium]
-    - [ ] turn into react or nextjs [Medium]
-    - [ ] add bundling 
+  - [ ] migrate project into react or nextjs [Medium]
+  - [ ] add bundling 
+- [ ] fold/collapse codeblocks that user submitted
 - [x] refactor vscode side to its own folder and make it modular as well, 
 - [ ] restore clipboard content when using aider apply [Tiny]
 - [ ] stop generation doesn't work due to capturing the button submit [Medium?]
