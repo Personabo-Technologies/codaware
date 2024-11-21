@@ -6,18 +6,48 @@ const PLATFORMS = {
     selectors: {
       inputField: '#prompt-textarea',
       sendButton: '[data-testid="send-button"]',
-      editor: '.ProseMirror'
+      editor: '.ProseMirror',
+      codeBlock: 'pre code',
+      codeBlockContainer: '.sticky'
     },
-    inputFieldType: 'textarea'
+    inputFieldType: 'textarea',
+    buttonStyle: {
+      container: 'sticky',
+      button: `
+        padding: 4px 8px;
+        background: #2A2B32;
+        border: 1px solid #565869;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        margin-right: 8px;
+      `,
+      icon: '📋 Apply Change'
+    }
   },
   CLAUDE: {
     hostnames: ['claude.ai'],
     selectors: {
       inputField: '[contenteditable="true"].ProseMirror',
       sendButton: 'button[aria-label="Send Message"]',
-      editor: '.ProseMirror'
+      editor: '.ProseMirror',
+      codeBlock: '.code-block__code',
+      codeBlockContainer: '.flex.flex-1.items-center.justify-end'
     },
-    inputFieldType: 'contenteditable'
+    inputFieldType: 'contenteditable',
+    buttonStyle: {
+      container: 'flex flex-1 items-center justify-end',
+      button: `inline-flex items-center justify-center relative shrink-0 ring-offset-2 
+        ring-offset-bg-300 ring-accent-main-100 focus-visible:outline-none 
+        focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50 
+        disabled:shadow-none disabled:drop-shadow-none bg-[radial-gradient(ellipse,_var(--tw-gradient-stops))] 
+        from-bg-500/10 from-50% to-bg-500/30 border-0.5 border-border-400 
+        font-medium font-styrene text-text-100/90 transition-colors 
+        active:bg-bg-500/50 hover:text-text-000 hover:bg-bg-500/60 
+        h-8 rounded-md px-3 text-xs min-w-[4rem] active:scale-[0.985] whitespace-nowrap`,
+      icon: 'Apply'
+    }
   }
 };
 
@@ -66,8 +96,20 @@ async function getFileContents(filePath, retryCount = 3) {
   }
 }
 
-function getSuggestions(query) {
-  return new Promise((resolve, reject) => {  // Added reject parameter
+function getSuggestions(query, retryCount = 3, delay = 1000) {
+  return new Promise((resolve, reject) => {
+    const tryGetSuggestions = (attemptNumber) => {
+      // Check if chrome.storage is available
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+        if (attemptNumber < retryCount) {
+          console.log(`Chrome storage not available, retrying in ${delay}ms (attempt ${attemptNumber + 1}/${retryCount})`);
+          setTimeout(() => tryGetSuggestions(attemptNumber + 1), delay);
+          return;
+        }
+        reject(new Error('Chrome storage API not available'));
+        return;
+      }
+
     try {
       chrome.storage.local.get(['filePaths'], (result) => {
         // Check for chrome.runtime.lastError
@@ -99,6 +141,9 @@ function getSuggestions(query) {
     } catch (error) {
       reject(error);
     }
+    };
+
+    tryGetSuggestions(0);
   });
 }
 
@@ -265,40 +310,45 @@ async function showContextMenu(inputField, range, query) {
 }
 
 async function updateSuggestions(menu, query) {
-  // Remove existing suggestion items
-  menu.innerHTML = '';
-  
-  // Fetch new suggestions
-  const suggestions = await getSuggestions(query);
+  try {
+    menu.innerHTML = '';
+    const suggestions = await getSuggestions(query);
 
-  if (suggestions.length === 0) {
-    const item = document.createElement('div');
-    item.className = 'mention-menu-item no-results';
-    item.innerText = 'No results found';
-    menu.appendChild(item);
-    return;
-  }
-
-  suggestions.forEach((suggestion, index) => {
-    const item = document.createElement('div');
-    item.className = 'mention-menu-item';
-    item.innerText = suggestion.label;
-
-    item.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-    });
-
-    item.addEventListener('click', () => {
-      insertMentionContent(document.querySelector(getSelectors().inputField), suggestion);
-      //removeContextMenu();
-    });
-
-    menu.appendChild(item);
-
-    if (index === currentMenuIndex) {
-      item.classList.add('highlighted');
+    if (suggestions.length === 0) {
+      const item = document.createElement('div');
+      item.className = 'mention-menu-item no-results';
+      item.innerText = 'No results found';
+      menu.appendChild(item);
+      return;
     }
-  });
+
+    suggestions.forEach((suggestion, index) => {
+      const item = document.createElement('div');
+      item.className = 'mention-menu-item';
+      item.innerText = suggestion.label;
+
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+      });
+
+      item.addEventListener('click', () => {
+        insertMentionContent(document.querySelector(getSelectors().inputField), suggestion);
+        //removeContextMenu();
+      });
+
+      menu.appendChild(item);
+
+      if (index === currentMenuIndex) {
+        item.classList.add('highlighted');
+      }
+    });
+  } catch (error) {
+    console.error('Error getting suggestions:', error);
+    const errorItem = document.createElement('div');
+    errorItem.className = 'mention-menu-item error';
+    errorItem.innerText = 'Error loading suggestions';
+    menu.appendChild(errorItem);
+  }
 }
 
 function getInputField() {
@@ -670,31 +720,61 @@ function predictApplyDestination(code, filesList) {
 function addCodeBlockButton(codeBlock) {
   if (codeBlock.dataset.buttonAdded) return;
 
-  // Find the existing sticky div containing the Copy Code button
-  const stickyDiv = codeBlock.closest('pre').querySelector('.sticky');
-  if (!stickyDiv) return;
+  const platform = getCurrentPlatform();
+  if (!platform) return;
 
-  // Create log button
-  const applyButton = document.createElement('button');
-  applyButton.innerHTML = '📋 Apply Change';
-  applyButton.style.cssText = `
-    padding: 4px 8px;
-    background: #2A2B32;
-    border: 1px solid #565869;
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    margin-right: 8px; /* Add space between buttons */
-  `;
+  // For ChatGPT
+  if (codeBlock.matches('pre code')) {
+    const stickyDiv = codeBlock.closest('pre').querySelector('.sticky');
+    if (!stickyDiv) return;
+    
+    const applyButton = document.createElement('button');
+    applyButton.innerHTML = platform.buttonStyle.icon;
+    applyButton.style.cssText = platform.buttonStyle.button;
+    
+    const buttonContainer = stickyDiv.firstChild || stickyDiv;
+    buttonContainer.prepend(applyButton);
+    
+    setupButtonClickHandler(applyButton, codeBlock);
+  }
+  // For Claude
+  else if (codeBlock.matches('.code-block__code')) {
+    const containerDiv = codeBlock.closest('div[class="bg-bg-000 flex h-full flex-col"]');
+    if (!containerDiv) return;
+    
+    let buttonContainer = containerDiv.querySelector('.flex.flex-1.items-center.justify-end');
+    if (!buttonContainer) {
+        buttonContainer = document.createElement('div');
+        buttonContainer.className = platform.buttonStyle.container;
+        codeBlock.appendChild(buttonContainer);
+    }
 
-  applyButton.addEventListener('click', (e) => {
+    const applyButton = document.createElement('button');
+    applyButton.className = platform.buttonStyle.button;
+    applyButton.innerHTML = platform.buttonStyle.icon;
+    
+    buttonContainer.insertBefore(applyButton, buttonContainer.firstChild);
+    setupButtonClickHandler(applyButton, codeBlock);
+  }
+
+  codeBlock.dataset.buttonAdded = 'true';
+}
+
+// Helper function for button click handler
+function setupButtonClickHandler(button, codeBlock) {
+  button.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    let code = codeBlock.textContent;
+    
+    let code;
+    if (codeBlock.matches('.code-block__code')) {
+      code = codeBlock.querySelector('code').textContent;
+    } else {
+      code = codeBlock.textContent;
+    }
+    
     console.log('Code block content:', code);
     
-    //const applyDestination = `client/src/shared/utils/toast.js`;
     const similarityScores = predictApplyDestination(code);
     const applyDestination = similarityScores.reduce((best, current) =>
       current.score > best.score ? current : best
@@ -730,23 +810,17 @@ function addCodeBlockButton(codeBlock) {
     }
 
   });
-
-  // Find the button container within the sticky div
-  const buttonContainer = stickyDiv.firstChild || stickyDiv;
-  
-  // Insert at the beginning of the container
-  buttonContainer.prepend(applyButton);
-
-  // Mark as processed
-  codeBlock.dataset.buttonAdded = 'true';
 }
 
 // Rest of the code remains the same
 function addButtonsToCodeBlocks() {
-  const codeBlocks = document.querySelectorAll('pre code');
+  const platform = getCurrentPlatform();
+  if (!platform) return;
+
+  const codeBlocks = document.querySelectorAll(platform.selectors.codeBlock);
   codeBlocks.forEach((codeBlock) => {
     if (!codeBlock.dataset.buttonAdded) {
-      addCodeBlockButton(codeBlock);
+      addCodeBlockButton(codeBlock, platform);
     }
   });
 }
@@ -756,13 +830,18 @@ const codeBlockObserver = new MutationObserver((mutations) => {
     if (mutation.type === 'childList') {
       mutation.addedNodes.forEach(node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
-          if (node.matches('pre code')) {
-            addCodeBlockButton(node);
+          // Check for both ChatGPT and Claude code blocks
+          if (node.matches('pre code') || node.matches('.code-block__code')) {
+            addCodeBlockButton(node, node.matches('pre code') ? 'chatgpt' : 'claude');
           }
-          const codeBlocks = node.querySelectorAll('pre code');
+          // Also check children
+          const codeBlocks = node.querySelectorAll('pre code, .code-block__code');
           codeBlocks.forEach(codeBlock => {
             if (!codeBlock.dataset.buttonAdded) {
-              addCodeBlockButton(codeBlock);
+              addCodeBlockButton(
+                codeBlock, 
+                codeBlock.matches('pre code') ? 'chatgpt' : 'claude'
+              );
             }
           });
         }
@@ -793,4 +872,3 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
-
