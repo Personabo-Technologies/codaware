@@ -62,10 +62,10 @@ async function processFileChips(fileChips) {
           } else {
             console.log("Cached file retrieval");
           }
-          return `File: ${label}\n\`\`\`\n${content}\n\`\`\`\n`;
+          return `filepath:${label}\n\`\`\`\n${content}\n\`\`\`\n`;
         } catch (error) {
-          console.error('Error getting content for', label, error);
-          return `File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`;
+          console.error('Error getting content for', label, error);      
+          alert(`File: ${label}\n\`\`\`\nError loading file content\n\`\`\`\n`);
         }
       })
     );

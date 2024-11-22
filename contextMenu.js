@@ -17,6 +17,9 @@ function shouldShowContextMenu(text, index) {
   }
   
 function handleKeyUp(event) {
+
+    // console.log("inputField captured keyup")
+
     //console.log(`handleKeyUp called. Key: ${event.key}`);
     const inputField = event.target;
   
@@ -97,12 +100,13 @@ function handleKeyUp(event) {
         getSuggestions('').then((suggestions) => {
           const suggestion = suggestions.find(s => s.label === suggestionLabel);
           if (suggestion) {
-            insertMentionContent(suggestion);
+            insertMentionContent(document.querySelector(getSelectors().inputField), suggestion);
             //removeContextMenu();
           }
         });
       }
     } else if (event.key === 'Escape') {
+      console.log("Captured Escape inside FileMenu")
       removeContextMenu();
     }
   }

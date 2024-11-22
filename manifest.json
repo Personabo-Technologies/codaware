@@ -18,6 +18,7 @@
         "https://claude.ai/*"
 		],
         "js": [
+          "interceptSubmit.js",
           "utils.js", 
           "platform.js",
           "files.js",
@@ -26,7 +27,8 @@
           "applyChange.js",
           "content.js"
         ],
-        "css": ["styles.css"]
+        "css": ["styles.css"],
+        "run_at": "document_start"
       }
     ],
 		"background": {

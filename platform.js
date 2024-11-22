@@ -6,7 +6,7 @@ const PLATFORMS = {
         inputField: '#prompt-textarea',
         sendButton: '[data-testid="send-button"]',
         editor: '.ProseMirror',
-        codeBlock: 'pre code',
+        codeBlock: 'pre[class*="!overflow-visible"] code',
         codeBlockContainer: '.sticky',
         codeActionButtonContainer: 'pre' // Added closest selector for ChatGPT
       },

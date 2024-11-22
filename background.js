@@ -15,7 +15,16 @@ function safeStorageAccess(operation) {
   }
 }
 
-// This script can handle events or perform tasks in the background
+// Helper function to safely send WebSocket messages
+function safeSendWebSocketMessage(message) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+    return true;
+  }
+  console.warn('WebSocket not ready, message not sent:', message);
+  return false;
+}
+
 chrome.runtime.onInstalled.addListener(() => {
     console.log('ChatGPT Mention Extension installed.');
 });
@@ -28,15 +37,19 @@ const RECONNECT_DELAY = 3000; // 3 seconds
 function connectWebSocket() {
   socket = new WebSocket('ws://localhost:8080');
   
-socket.onopen = () => {
+  socket.onopen = () => {
     console.log('Connected to VS Code extension');
     reconnectAttempts = 0; // Reset attempts on successful connection
-    socket.send(JSON.stringify({
-      type: 'REQUEST_FILES'
-    }));
+    
+    // Add a small delay to ensure the connection is ready
+    setTimeout(() => {
+      safeSendWebSocketMessage({
+          type: 'REQUEST_FILES'
+      });
+    }, 100);
   };
   
-socket.onmessage = (event) => {
+  socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'FILE_LIST') {
       console.log(`received file list`);
@@ -64,7 +77,7 @@ socket.onmessage = (event) => {
         console.warn("No diff callback found for:", data.fileName);
       }
     }
-};
+  };
   
   socket.onerror = (error) => {
     console.error('WebSocket error:', error);
@@ -100,7 +113,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("Background: received request to apply diff for:", message.fileName);
     
     if (!isSocketConnected()) {
-      console.error('WebSocket not connected');
+      console.log('WebSocket not connected');
       sendResponse({ error: 'WebSocket not connected. Please try again.' });
       return false;
     }
@@ -111,14 +124,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(response);
     };
     
-    try {
-      socket.send(JSON.stringify({
+    if (!safeSendWebSocketMessage({
         type: 'DIFF_CLIPBOARD',
         fileName: message.fileName,
-        code: message.code  // Include the code in the WebSocket message
-      }));
-    } catch (error) {
-      console.error('Error sending diff request:', error);
+      code: message.code
+    })) {
+      console.error('Failed to send diff request');
       sendResponse({ error: 'Failed to send diff request' });
       return false;
     }
@@ -135,7 +146,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
     
     if (!isSocketConnected()) {
-      console.error('WebSocket not connected, attempting to reconnect...');
+      console.log('WebSocket not connected, attempting to reconnect...');
       connectWebSocket(); // Try to reconnect
       sendResponse({ 
         error: 'WebSocket not connected. Please try again in a few seconds.' 
@@ -143,13 +154,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
     }
     
-    try {
-      socket.send(JSON.stringify({
+    if (!safeSendWebSocketMessage({
         type: 'GET_FILE_CONTENTS',
         filePath: message.filePath.trim()
-      }));
-    } catch (error) {
-      console.error('Error sending message:', error);
+    })) {
+      console.error('Failed to send file contents request');
       sendResponse({ error: 'Failed to send message' });
       return false;
     }
