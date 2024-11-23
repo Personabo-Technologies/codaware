@@ -11,25 +11,26 @@ function addCodeBlockButton(codeBlock) {
       const containerDiv = codeBlock.closest(selectors.codeActionButtonContainer);
       if (!containerDiv) return;
       
-      let buttonContainer = containerDiv.querySelector(`.${platform.buttonStyle.container}`);
+      let buttonContainer = containerDiv.querySelector(`${platform.buttonStyle.container}`);
       if (!buttonContainer) {
           buttonContainer = document.createElement('div');
           buttonContainer.className = platform.buttonStyle.container;
           codeBlock.appendChild(buttonContainer);
+      } else {
       }
   
       const applyButton = document.createElement('button');
       if (platform === PLATFORMS.CHATGPT) {
         applyButton.style.cssText = platform.buttonStyle.button;
+        buttonContainer.firstChild.prepend(applyButton);
       } else if (platform == PLATFORMS.CLAUDE) {
         applyButton.className = platform.buttonStyle.button;
+        buttonContainer.prepend(applyButton);
       }
       applyButton.innerHTML = platform.buttonStyle.icon;
       
-      const targetContainer = buttonContainer.firstChild || buttonContainer;
-      targetContainer.prepend(applyButton);
-      
       setupButtonClickHandler(applyButton, codeBlock);
+    } else {
     }
   
     codeBlock.dataset.buttonAdded = 'true';

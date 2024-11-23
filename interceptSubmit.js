@@ -10,8 +10,6 @@
     //event.stopImmediatePropagation();
     console.log("----- intercepted submission")
 
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
     const container = document.getElementById('file-chips-container');
     const fileChips = container ? container.querySelectorAll('.file-chip') : [];
 

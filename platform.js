@@ -12,7 +12,7 @@ const PLATFORMS = {
       },
       inputFieldType: 'textarea',
       buttonStyle: {
-        container: 'sticky',
+        container: '.sticky',
         button: `
           padding: 4px 8px;
           background: #2A2B32;
@@ -38,7 +38,7 @@ const PLATFORMS = {
       },
       inputFieldType: 'contenteditable',
       buttonStyle: {
-        container: 'flex flex-1 items-center justify-end',
+        container: '.flex.flex-1.items-center.justify-end',
         button: `inline-flex items-center justify-center relative shrink-0 ring-offset-2 
           ring-offset-bg-300 ring-accent-main-100 focus-visible:outline-none 
           focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50 

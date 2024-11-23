@@ -86,5 +86,8 @@ async function appendFileContentsToMessage(fileContents) {
     ? new InputEvent('input', { bubbles: true, cancelable: true })
     : new Event('input', { bubbles: true });
   
+  // needed otherwise the file doens't get injected in time before the submission
+  await new Promise(resolve => setTimeout(resolve, 500));
+
   editor.dispatchEvent(event);
 }

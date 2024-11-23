@@ -1,9 +1,10 @@
 // Add a cache object to store file contents
-const fileContentCache = {};
+let fileContentCache = {};
 
 // Function to extract file paths from the page content
 function extractFilePaths() {
   const filePathRegex = /filepath:(\/[^\s]+)/g;
+
   const textNodes = document.evaluate(
     "//text()", 
     document.body,
@@ -18,11 +19,15 @@ function extractFilePaths() {
     const text = textNodes.snapshotItem(i).textContent;
     const matches = text.matchAll(filePathRegex);
     for (const match of matches) {
-      paths.add(match[1]); // match[1] contains the path without the "filepath:" prefix
+      paths.add(match[1]);
     }
   }
 
   return Array.from(paths);
+}
+
+function clearFileCache() {
+  fileContentCache = {};
 }
 
 // Function to populate the cache
@@ -143,60 +148,84 @@ let currentPath = window.location.pathname;
 
 // Modified initializeCache function
 function initializeCache() {
-  // Create function to set up observer
-  function setupRouteObserver() {
-    if (!document.body) {
-      console.log('Body not ready, waiting...');
-      setTimeout(setupRouteObserver, 100);
-      return;
-    }
-
-    const observer = new MutationObserver((mutations) => {
-      const newPath = window.location.pathname;
-      if (newPath !== currentPath) {
-        console.log('SPA route changed, updating cache...', newPath);
-        currentPath = newPath;
-        populateFileCache();
-      }
-    });
-
-    // Start observing once body is available
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-
-    console.log('Route observer set up successfully');
+  // Function to check if DOM is ready for processing
+  function isDOMReady() {
+    return document.readyState === 'complete' && 
+           document.body !== null && 
+           document.documentElement !== null;
   }
 
-  // Set up route observer
-  setupRouteObserver();
+  // Function to wait for DOM to be ready
+  function waitForDOM(callback, maxAttempts = 10) {
+    let attempts = 0;
+    
+    function checkDOM() {
+      attempts++;
+      if (isDOMReady()) {
+        console.log('DOM is ready, proceeding with cache population');
+        callback();
+      } else if (attempts < maxAttempts) {
+        console.log(`DOM not ready, attempt ${attempts}/${maxAttempts}. Retrying...`);
+        setTimeout(checkDOM, 500);
+      } else {
+        console.warn('Max attempts reached waiting for DOM. Proceeding anyway...');
+        callback();
+      }
+    }
 
-  // Also handle manual navigation events
+    checkDOM();
+  }
+
+  // Setup route observer only when DOM is ready
+  function setupRouteObserver() {
+    waitForDOM(() => {
+      const observer = new MutationObserver((mutations) => {
+        const newPath = window.location.pathname;
+        if (newPath !== currentPath) {
+          console.log('SPA route changed, updating cache...', newPath);
+          currentPath = newPath;
+          clearFileCache();
+          setTimeout(() => {
+            console.log('inside page change');
+            populateFileCache();
+          }, 2000);
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+
+      console.log('Route observer set up successfully');
+    });
+  }
+
+  // Handle navigation events
   window.addEventListener('popstate', () => {
     const newPath = window.location.pathname;
     if (newPath !== currentPath) {
       console.log('Navigation occurred, updating cache...', newPath);
       currentPath = newPath;
-      populateFileCache();
-    }
+      clearFileCache();
+      setTimeout(() => {
+        console.log('inside page refresh');
+        populateFileCache();
+      }, 2000);    }
   });
 
-  // Original initialization code
-  function startCachePopulation() {
-    populateFileCache();
-  }
-
-  if (document.readyState === 'complete') {
-    startCachePopulation();
-  } else {
-    window.addEventListener('load', startCachePopulation);
+  // Initial cache population
+  waitForDOM(() => {
+    console.log('Starting initial cache population');
     setTimeout(() => {
-      if (document.body) {
-        startCachePopulation();
-      }
-    }, 1000);
-  }
+      console.log('inside initial cache population');
+      populateFileCache();
+    }, 2000);
+    
+  });
+
+  // Set up route observer
+  setupRouteObserver();
 }
 
 // Call initialization

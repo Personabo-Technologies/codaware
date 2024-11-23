@@ -135,8 +135,8 @@ function findBestMatch(codeBlockContent, files) {
   }
 
   // Logging Inputs
-  console.log("Input code block:", codeBlockContent);
-  console.log("Input files:", files);
+  //console.log("Input code block:", codeBlockContent);
+  //console.log("Input files:", files);
 
   const tfidf = new CustomTfIdf();
   const fileNames = Object.keys(files);
@@ -182,10 +182,10 @@ function findBestMatch(codeBlockContent, files) {
   });
 
   // Log Similarity Scores
-  console.log('Similarity Scores:');
-  similarityScores.forEach(({ fileName, score }) => {
-    console.log(`${fileName}: ${score}`);
-  });
+  // console.log('Similarity Scores:');
+  // similarityScores.forEach(({ fileName, score }) => {
+  //   console.log(`${fileName}: ${score}`);
+  // });
 
   // Find the best match
   // const bestMatch = similarityScores.reduce((best, current) =>
@@ -505,5 +505,5 @@ export default ProjectBoardLists;
 };
 
 // Example Usage
-const bestMatch = findBestMatch(codeBlockContent, files);
-console.log(`The code block most likely belongs to: ${bestMatch}`);
+//const bestMatch = findBestMatch(codeBlockContent, files);
+//console.log(`The code block most likely belongs to: ${bestMatch}`);

@@ -121,14 +121,16 @@ initializeObservers();
 // Initialize code block buttons with proper timing
 function initializeCodeBlockButtons() {
   addButtonsToCodeBlocks();
-  setTimeout(addButtonsToCodeBlocks, 1000);
-  setInterval(addButtonsToCodeBlocks, 2000);
+  //setTimeout(addButtonsToCodeBlocks, 1000);
+  //setInterval(addButtonsToCodeBlocks, 2000);
 }
 
 // Start the code block button initialization
 if (document.readyState === 'loading') {
+  console.log("page still loading, wait for DOM load");
   document.addEventListener('DOMContentLoaded', initializeCodeBlockButtons);
 } else {
+  console.log("page loaded, attempting to add buttons");
   initializeCodeBlockButtons();
 }
 
