@@ -145,21 +145,21 @@ async function insertMentionContent(inputField, suggestion) {
   if (!(suggestion.label in fileContentCache) && suggestion.type !== 'folder') {
     getFileContents(suggestion.label.slice(1))
       .then(content => {
-        fileContentCache[suggestion.label] = content; // Use object notation
+        fileContentCache[suggestion.label] = content;
       })
       .catch(error => {
         console.error('Error caching file content:', error);
       });
   }
 
-  // Clean up '>' character if present
+  // Clean up '>' character and add file name
   const currentText = inputField.value || inputField.innerText;
   if (currentText.endsWith('>')) {
-    console.log("cleaning up ending >");
-    if (inputField.value) {
-      inputField.value = currentText.slice(0, -1);
+    const newText = currentText.slice(0, -1) + `file: ${suggestion.label.slice(1)} `; // slice(1) removes the leading '/'
+    if (inputField.value !== undefined) {
+      inputField.value = newText;
     } else {
-      inputField.innerText = currentText.slice(0, -1);
+      inputField.innerText = newText;
     }
   }
 
