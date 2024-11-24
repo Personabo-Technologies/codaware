@@ -3,48 +3,21 @@
 async function initializeMentionExtension(inputField) {
   inputField.classList.add('mention-extension-enabled');
 
-  // Keep the mention-specific keydown handler
-    inputField.addEventListener('keydown', async (event) => {
-      console.log("inputField captured keydown")
-    const menu = document.getElementById('mention-context-menu');
-    if (menu) {
-      console.log("Mention menu active - handling keydown");
-      
-      if (event.key === 'Enter') {
-        console.log("captured enter inside mention menu");
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        
-        const menuItems = document.querySelectorAll('.mention-menu-item');
-        if (menuItems.length > 0 && currentMenuIndex >= 0) {
-          const selectedItem = menuItems[currentMenuIndex];
-          const suggestionLabel = selectedItem.innerText;
-          
-          const suggestions = await getSuggestions('') || [];
-          const suggestion = Array.isArray(suggestions) 
-            ? suggestions.find(s => s.label === suggestionLabel)
-            : null;
-          
-          if (selectedItem && suggestion) {
-            await insertMentionContent(inputField, suggestion);
-            removeContextMenu();
-          }
-        }
-        return false;
-      }
-    }
+  // Add single keyboard event listeners that delegate to menu handler
+  inputField.addEventListener('keydown', (event) => {
+    handleMenuKeyboardEvents(event, inputField);
   }, { capture: true, passive: false });
 
-  inputField.addEventListener('keyup', handleKeyUp, true);
-
-  // Keep the keyup handler for other functionality
-  //inputField.addEventListener('keyup', handleKeyUp);
+  inputField.addEventListener('keyup', (event) => {
+    handleMenuKeyboardEvents(event, inputField);
+  }, true);
 
   // Close context menu on click outside
   document.addEventListener('click', (event) => {
     const menu = document.getElementById('mention-context-menu');
-    if (menu && !menu.contains(event.target)) {
+    const isAddContextButton = event.target.classList.contains('add-context-btn');
+
+    if (menu && !menu.contains(event.target) && !isAddContextButton) {
       removeContextMenu();
     }
   });
@@ -52,10 +25,20 @@ async function initializeMentionExtension(inputField) {
 
 // Wrap the observer initialization in a function
 function initializeObservers() {
-  // Main observer for input field
   const observer = new MutationObserver(() => {
     const selectors = getSelectors();
     if (!selectors) return;
+
+    // Add button to input container
+    const inputFieldContainer = document.querySelector(getCurrentPlatform() === PLATFORMS.CHATGPT
+      ? '#composer-background'
+      : '.flex.flex-col.bg-bg-000');
+
+    if (inputFieldContainer) {
+      addContextButton(inputFieldContainer);
+    } else {
+      console.log("no found");
+    }
 
     const inputField = document.querySelector(selectors.inputField);
     if (inputField && !inputField.classList.contains('mention-extension-enabled')) {
@@ -69,6 +52,7 @@ function initializeObservers() {
       if (mutation.type === 'childList') {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
+
             // Check for both ChatGPT and Claude code blocks
             if (node.matches('pre code') || node.matches('.code-block__code')) {
               addCodeBlockButton(node, node.matches('pre code') ? 'chatgpt' : 'claude');
@@ -138,9 +122,25 @@ if (document.readyState === 'loading') {
 async function insertMentionContent(inputField, suggestion) {
   const container = createChipsContainer(inputField);
   
-  // Create and add chip immediately
-  const chip = createFileChip(suggestion);
-  container.appendChild(chip);
+  // Check if chip already exists for this file
+  const existingChips = container.getElementsByClassName('file-chip');
+  let hasChipAlready = false;
+  for (const chip of existingChips) {
+    if (chip.getAttribute('data-file') === suggestion.label) {
+      hasChipAlready = true;
+      console.log("already has chip");
+      // Chip already exists, don't add duplicate
+    } else {
+      console.log("NOT has chip");
+    }
+  }
+
+  if (hasChipAlready) {
+
+  } else {
+    const chip = createFileChip(suggestion);
+    container.appendChild(chip);
+  }
 
   if (!(suggestion.label in fileContentCache) && suggestion.type !== 'folder') {
     getFileContents(suggestion.label.slice(1))
@@ -155,7 +155,7 @@ async function insertMentionContent(inputField, suggestion) {
   // Clean up '>' character and add file name
   const currentText = inputField.value || inputField.innerText;
   if (currentText.endsWith('>')) {
-    const newText = currentText.slice(0, -1) + `file: ${suggestion.label.slice(1)} `; // slice(1) removes the leading '/'
+    const newText = currentText.slice(0, -1) + `file: ${suggestion.label.slice(1)} `;
     if (inputField.value !== undefined) {
       inputField.value = newText;
     } else {
@@ -178,4 +178,51 @@ async function insertMentionContent(inputField, suggestion) {
 function getInputField() {
   const selectors = getSelectors();
   return document.querySelector(selectors.inputField);
+}
+
+function addContextButton(inputFieldContainer) {
+  // Check if button already exists
+  if (inputFieldContainer.querySelector('.add-context-btn')) {
+    return;
+  }
+
+  // Create button
+  const button = document.createElement('button');
+  button.className = 'add-context-btn';
+  button.innerHTML = '+ Add Context';
+  button.style.cssText = `
+    top: 10px;
+    left: 10px;
+    padding: 6px 12px;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 1000;
+  `;
+
+  // Add hover effect
+  button.addEventListener('mouseover', () => {
+    button.style.backgroundColor = '#444';
+  });
+  button.addEventListener('mouseout', () => {
+    button.style.backgroundColor = '#333';
+  });
+
+  // Add click handler
+  button.addEventListener('click', () => {
+    const inputField = getInputField();
+    if (inputField) {
+      // Simulate typing '>' by creating and showing the file menu
+
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      showContextMenu(inputField, range, "");
+    }
+  });
+
+  // Insert as first child
+  inputFieldContainer.prepend(button);
 }

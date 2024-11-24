@@ -66,4 +66,35 @@
   outline: none;
   background-color: inherit ! important;
 }
-  
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.add-context-btn:hover {
+  background-color: #444 !important;
+}
+
+.add-context-btn:active {
+  transform: translateY(1px);
+}
+
+/* Platform specific adjustments */
+#composer-background .add-context-btn {
+  top: 5px;
+  left: 5px;
+}
+
+.flex.flex-col.bg-bg-000 .add-context-btn {
+  top: 8px;
+  left: 8px;
+} 

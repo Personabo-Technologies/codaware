@@ -16,22 +16,38 @@ function shouldShowContextMenu(text, index) {
     return noTrailingString && hasWhiteSpaceImmediatelyBefore;
   }
   
-function handleKeyUp(event) {
-
-    // console.log("inputField captured keyup")
-
-    //console.log(`handleKeyUp called. Key: ${event.key}`);
-    const inputField = event.target;
+// Add this function to handle all menu-related keyboard events
+function handleMenuKeyboardEvents(event, inputField) {
+  const menu = document.getElementById('mention-context-menu');
   
-    // Get the current selection
-    const selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    
-    // Get the current node (text node) where the cursor is
-    const currentNode = range.startContainer;
-    
-    // Check if the context menu is open first
-    const menu = document.getElementById('mention-context-menu');
+  // Handle keydown events when menu is open
+  if (event.type === 'keydown' && menu) {
+    if (event.key === 'Enter') {
+      console.log("captured enter inside mention menu");
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      
+      const menuItems = document.querySelectorAll('.mention-menu-item');
+      if (menuItems.length > 0 && currentMenuIndex >= 0) {
+        const selectedItem = menuItems[currentMenuIndex];
+        const suggestionLabel = selectedItem.innerText;
+        
+        getSuggestions('').then(suggestions => {
+          const suggestion = suggestions.find(s => s.label === suggestionLabel);
+          if (selectedItem && suggestion) {
+            insertMentionContent(inputField, suggestion);
+            removeContextMenu();
+          }
+        });
+      }
+      return false;
+    }
+  }
+
+  // Handle keyup events
+  if (event.type === 'keyup') {
+    // Check if menu is open first for navigation
     if (menu && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
       console.log(`Navigating menu with key: ${event.key}`);
       event.preventDefault();
@@ -39,25 +55,30 @@ function handleKeyUp(event) {
       navigateMenu(event.key);
       return;
     }
-  
-    // Only look at the text content of the current line (node)
-    const textContent = currentNode.textContent;
-    const cursorPosition = range.startOffset;
-    const textBeforeCursor = textContent.slice(0, cursorPosition);
-  
-    // Check if the last character is '>'
-    const lastIndex = textBeforeCursor.lastIndexOf('>');
-    const shouldShowFileSuggestions = shouldShowContextMenu(textBeforeCursor, lastIndex);
-    if (lastIndex !== -1 && shouldShowFileSuggestions) {
-      //console.log("should show context menu")
-      const query = textBeforeCursor.slice(lastIndex + 1);
-      //console.log(`Triggering context menu with query: ${query.trim()}`);
-      showContextMenu(inputField, range, query.trim());
-    } else {
-      // console.log('No context menu trigger found. Removing context menu.');
-      removeContextMenu();
+
+    if (event.key === ">") {
+      // Get the current selection
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      const currentNode = range.startContainer;
+      
+      // Check for context menu trigger
+      const textContent = currentNode.textContent;
+      const cursorPosition = range.startOffset;
+      const textBeforeCursor = textContent.slice(0, cursorPosition);
+      
+      const lastIndex = textBeforeCursor.lastIndexOf('>');
+      const shouldShowFileSuggestions = shouldShowContextMenu(textBeforeCursor, lastIndex);
+      
+      if (lastIndex !== -1 && shouldShowFileSuggestions) {
+        const query = textBeforeCursor.slice(lastIndex + 1);
+        showContextMenu(inputField, range, query.trim());
+      } else {
+        removeContextMenu();
+      }
     }
   }
+}
   
   function navigateMenu(direction, menuItems) {
     if (menuItems.length === 0) return;

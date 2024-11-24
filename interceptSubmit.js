@@ -126,7 +126,13 @@ function isInMentionContextMenu(element) {
     async function (event) {
       const menu = document.getElementById('mention-context-menu');
 
-      if ((event.key === 'Enter' || event.keyCode === 13) && !isCustomEvent) {
+      // Only proceed if it's Enter without any modifier keys and not a custom event
+      if ((event.key === 'Enter' || event.keyCode === 13) && 
+          !event.shiftKey && 
+          !event.ctrlKey && 
+          !event.altKey && 
+          !event.metaKey && 
+          !isCustomEvent) {
         if (menu) {
           // If there's an active mention menu, don't intercept
           // Let the mention handler in content.js handle it

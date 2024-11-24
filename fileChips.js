@@ -20,6 +20,7 @@ function createChipsContainer(inputField) {
 function createFileChip(suggestion) {
     const chip = document.createElement('div');
     chip.className = 'file-chip';
+    chip.setAttribute('data-file', suggestion.label); // Add data attribute to identify the file
     chip.style.cssText = `
       background: #2A2B32;
       border: 1px solid #565869;
