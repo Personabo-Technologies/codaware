@@ -7,6 +7,9 @@
             padding: 20px;
             font-family: Arial, sans-serif;
         }
+        div {
+            padding: 10px 0px;
+        }
         .container {
             max-width: 500px;
             margin: 0 auto;
@@ -50,8 +53,14 @@
             <input type="number" id="port" min="1" max="65535">
         </div>
         <button id="save">Save</button>
-        <button id="clearCache">Clear Files Cache</button>
-        <div id="status"></div>
+        <div>
+            <button id="clearCache">Clear Files Cache</button>
+        </div>
+        
+        <div>
+            <button id="checkConnection">Check WebSocket Connection</button>
+            <div id="status"></div>
+        </div>
 
         <div class="chrome-only">
             <button id="selectFolder">Select Folder</button>

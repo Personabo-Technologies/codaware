@@ -164,18 +164,50 @@ async function showContextMenu(inputField, range, query) {
   menu.style.borderRadius = '15px';
   menu.style.zIndex = '1000';
 
-  // Check WebSocket connection
-  const isConnected = await isWebSocketConnected();
+  const menuInput = document.createElement('input');
+    menuInput.type = 'text';
+    menuInput.id = 'menu-input';
+    menuInput.value = query;
+    menuInput.placeholder = 'Search files...';
+    menuInput.className = 'menu-input';
+  
+    // Create a suggestions container
+    const suggestionsContainer = document.createElement('div');
+    suggestionsContainer.id = 'suggestions-container';
+    
+    // Append both elements to the menu
+    menu.appendChild(menuInput);
+    menu.appendChild(suggestionsContainer);  
+  
+    // Initial suggestions
+    await updateSuggestions(suggestionsContainer, query);
+  
+    // Add event listeners
+    menuInput.addEventListener('input', async (event) => {
+      currentMenuIndex = 0;
+      await updateSuggestions(suggestionsContainer, event.target.value);
+    });
+  
+    menuInput.addEventListener('keydown', (event) => {
+      handleMenuInputKeyDown(event, menuInput, menu);
+    });
 
-  if (!isConnected) {
-    // Create a message container for the disconnected state
+    // Focus on the menu input
+    menuInput.focus();
+
+  isWebSocketConnected().then(connected => {
+    if(!connected) {
+      // remove 
+      menu.removeChild(menuInput);
+      menu.removeChild(suggestionsContainer);
+
+      // Create a message container for the disconnected state
     const disconnectedMessage = document.createElement('div');
     disconnectedMessage.style.cssText = `
       height: 100%;
       padding: 16px;
       text-align: center;
       background: #f8f9fa;
-      border-radius: 15px;
       color: #333;
       font-size: 13px;
       line-height: 1.5;
@@ -204,39 +236,8 @@ async function showContextMenu(inputField, range, query) {
     disconnectedMessage.appendChild(messageText);
     disconnectedMessage.appendChild(settingsLink);
     menu.appendChild(disconnectedMessage);
-  } else {
-    // Original menu content for connected state
-    const menuInput = document.createElement('input');
-    menuInput.type = 'text';
-    menuInput.id = 'menu-input';
-    menuInput.value = query;
-    menuInput.placeholder = 'Search files...';
-    menuInput.className = 'menu-input';
-  
-    // Create a suggestions container
-    const suggestionsContainer = document.createElement('div');
-    suggestionsContainer.id = 'suggestions-container';
-    
-    // Append both elements to the menu
-    menu.appendChild(menuInput);
-    menu.appendChild(suggestionsContainer);  
-  
-    // Initial suggestions
-    await updateSuggestions(suggestionsContainer, query);
-  
-    // Add event listeners
-    menuInput.addEventListener('input', async (event) => {
-      currentMenuIndex = 0;
-      await updateSuggestions(suggestionsContainer, event.target.value);
-    });
-  
-    menuInput.addEventListener('keydown', (event) => {
-      handleMenuInputKeyDown(event, menuInput, menu);
-    });
-
-        // Focus on the menu input
-        menuInput.focus();
-      }
+    }
+  });
   }
   
   async function updateSuggestions(menu, query) {

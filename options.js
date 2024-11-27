@@ -24,6 +24,41 @@ function clearFilesCache() {
     });
 }
 
+async function isWebSocketConnected() {
+    // Send a message to background script to check connection status
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ type: 'CHECK_CONNECTION' }, response => {
+        resolve(response?.connected || false);
+      });
+    });
+  }
+
+// Check WebSocket connection status
+function checkConnection() {
+    try {
+        const status = document.getElementById('status');
+
+        isWebSocketConnected().then(connected => {
+        
+            if (connected) {
+                status.textContent = 'WebSocket is connected.';
+                status.style.color = '#4CAF50';
+            } else {
+                status.textContent = 'WebSocket is not connected.';
+                status.style.color = '#F44336';
+            }
+            
+        });
+
+        
+    } catch (error) {
+        console.error('Error checking connection:', error);
+        const status = document.getElementById('status');
+        status.textContent = 'Error checking connection.';
+        status.style.color = '#F44336';
+    }
+}
+
 // Restores select box and checkbox state using the preferences
 // stored in chrome.storage.
 function restoreOptions() {
@@ -37,6 +72,7 @@ function restoreOptions() {
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.getElementById('save').addEventListener('click', saveOptions);
 document.getElementById('clearCache').addEventListener('click', clearFilesCache);
+document.getElementById('checkConnection').addEventListener('click', checkConnection);
 
 // Existing options code for port settings...
 

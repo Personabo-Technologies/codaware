@@ -29,6 +29,7 @@ function createFileChip(suggestion) {
       display: flex;
       align-items: center;
       gap: 4px;
+      color: white;
     `;
     
     const icon = suggestion.type === 'folder' ? '📁' : '📄';
