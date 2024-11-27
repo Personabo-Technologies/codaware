@@ -1,38 +1,40 @@
 {
     "manifest_version": 3,
-    "name": "ChatGPT Mention Extension",
+    "name": "Codaware, by EasyCode",
     "version": "1.0",
-    "description": "Allows using '>' to bring up options and suggestions in ChatGPT.",
+    "description": "Chat with codebase and apply changes directly.",
     "permissions": ["scripting", "activeTab", "storage"],
-		"host_permissions": [
-				"https://chat.openai.com/*",
-				"https://chatgpt.com/*",
+    "host_permissions": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "ws://localhost:8080/*" 
-		],
-    "content_scripts": [
-      {
-		"matches": [
-				"https://chat.openai.com/*",
-				"https://chatgpt.com/*",
-        "https://claude.ai/*"
-		],
-        "js": [
-          "interceptSubmit.js",
-          "utils.js", 
-          "platform.js",
-          "files.js",
-          "contextMenu.js",
-          "fileChips.js",
-          "applyChange.js",
-          "content.js"
-        ],
-        "css": ["styles.css"],
-        "run_at": "document_start"
-      }
+        "https://api.mixpanel.com/*",
+        "ws://localhost:*/*" 
     ],
-		"background": {
-			"service_worker": "background.js" 
-		}
-  } 
-  
+    "options_page": "options.html",
+    "content_scripts": [
+        {
+            "matches": [
+                "https://chat.openai.com/*",
+                "https://chatgpt.com/*",
+                "https://claude.ai/*"
+            ],
+            "js": [
+                "interceptSubmit.js",
+                "utils.js", 
+                "platform.js",
+                "files.js",
+                "contextMenu.js",
+                "fileChips.js",
+                "applyChange.js",
+                "content.js"
+            ],
+            "css": ["styles.css"],
+            "run_at": "document_start"
+        }
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    }
+}

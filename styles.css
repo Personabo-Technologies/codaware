@@ -98,3 +98,16 @@
   top: 8px;
   left: 8px;
 } 
+
+.settings-link {
+  user-select: none;
+}
+
+/* Platform specific adjustments */
+#composer-background .settings-link {
+  right: 8px;
+}
+
+.flex.flex-col.bg-bg-000 .settings-link {
+  right: 10px;
+}

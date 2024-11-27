@@ -1,7 +1,39 @@
-// background.js
+import mixpanel from "./mixpanel.js"
+
+mixpanel.init("885bb3993bb98e37dbb21823f8d1903d");
+
+chrome.runtime.onInstalled.addListener((details) => {
+	// tracking extension install
+  console.log("extension installed");
+  mixpanel.track('Install');
+})
+
+let websocketPort; // default port
+
+// Initialize port when extension loads
+initializePort();
+
+function initializePort() {
+  chrome.storage.local.get({ websocketPort: 49201 }, (items) => {
+    websocketPort = items.websocketPort;
+    connectWebSocket();
+  });
+}
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second between retries
+
+// Listen for changes to the port setting
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.websocketPort) {
+      websocketPort = changes.websocketPort.newValue;
+      // Reconnect with new port if socket exists
+      if (socket) {
+          socket.close();
+          connectWebSocket();
+      }
+  }
+});
 
 function safeStorageAccess(operation) {
   // Check if chrome.storage is available
@@ -34,11 +66,15 @@ chrome.runtime.onInstalled.addListener(() => {
 
 let socket;
 let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY = 3000; // 3 seconds
 
-function connectWebSocket() {
-  socket = new WebSocket('ws://localhost:8080');
+function connectWebSocket(retry = false) {
+  try{
+    socket = new WebSocket(`ws://localhost:${websocketPort}`);
+  } catch (e) {
+    console.warn("Failed to establish websocket connect");
+  }
   
   socket.onopen = () => {
     console.log('Connected to VS Code extension');
@@ -83,28 +119,68 @@ function connectWebSocket() {
   };
   
   socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
+    console.warn('WebSocket error:', error);
   };
   
   socket.onclose = () => {
-    console.log('WebSocket closed');
-    // Attempt to reconnect
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      reconnectAttempts++;
-      console.log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-      setTimeout(connectWebSocket, RECONNECT_DELAY);
+    if (!retry) {
+      console.log('WebSocket closed');
+      return;
     } else {
-      console.error('Max reconnection attempts reached');
+      // Attempt to reconnect
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        console.log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+        setTimeout(connectWebSocket, RECONNECT_DELAY);
+      } else {
+        console.warn('Max reconnection attempts reached');
+      }
     }
   };
 }
 
 // Add a function to check connection status
-function isSocketConnected() {
-  return socket && socket.readyState === WebSocket.OPEN;
-}
+async function isSocketConnected() {
+  let isConnected = socket && socket.readyState === WebSocket.OPEN;
+  if (!isConnected) {
+    console.log('Socket not connected. Attempting to reconnect...');
+    reconnectAttempts = 0;
+    
+    // Create a promise that resolves when connection is established or rejects after timeout
+    const connectionPromise = new Promise((resolve, reject) => {
+      const originalOnOpen = socket?.onopen;
+      const originalOnError = socket?.onerror;
+      
+      // Set a timeout to reject the promise if connection takes too long
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Connection timeout'));
+      }, 3000); // 5 second timeout
+      
+      connectWebSocket();
+      
+      socket.onopen = (event) => {
+        clearTimeout(timeoutId);
+        if (originalOnOpen) originalOnOpen(event);
+        resolve();
+      };
+      
+      socket.onerror = (error) => {
+        clearTimeout(timeoutId);
+        if (originalOnError) originalOnError(error);
+        reject(error);
+      };
+    });
 
-connectWebSocket();
+    try {
+      await connectionPromise;
+      isConnected = socket && socket.readyState === WebSocket.OPEN;
+    } catch (error) {
+      console.warn('Failed to establish connection:', error);
+      isConnected = false;
+    }
+  }
+  return isConnected;
+}
 
 // Separate callback queues
 let fileContentCallbacks = {};
@@ -113,7 +189,8 @@ let diffCallbacks = {};
 // Add a helper function to handle retries
 async function retryOperation(operation, maxRetries = MAX_RETRIES) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    if (isSocketConnected()) {
+    const isConnected = await isSocketConnected();
+    if (isConnected) {
       return await operation();
     }
     
@@ -150,7 +227,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })
     .catch(error => {
-      console.error('Error applying diff:', error);
+      console.log('Error applying diff:', error);
       sendResponse({ 
         error: 'Failed to apply changes after retries. Please check your connection.' 
       });
@@ -176,7 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })
     .catch(error => {
-      console.error('Error getting file contents:', error);
+      console.warn('Error getting file contents:', error);
       sendResponse({ 
         error: 'Failed to get file contents after retries. Please check your connection.' 
       });
@@ -184,4 +261,65 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true;
   }
+  else if (message.type === 'CHECK_CONNECTION') {
+    isSocketConnected().then(connected => {
+      sendResponse({ connected });
+    });
+    return true;
+  }
+});
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openOptions') {
+    chrome.runtime.openOptionsPage();
+  }
+});
+
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const tab = await chrome.tabs.get(activeInfo.tabId);
+  await handleTabUrl(tab.url);
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.url) {
+    await handleTabUrl(changeInfo.url);
+  }
+});
+
+async function handleTabUrl(url) {
+  const validUrls = [
+    'https://chat.openai.com',
+    'https://chatgpt.com',
+    'https://claude.ai'
+  ];
+
+  const shouldConnect = validUrls.some(validUrl => url?.startsWith(validUrl));
+
+  if (shouldConnect) {
+    const isConnected = await isSocketConnected();
+    if (!isConnected) {
+      chrome.storage.local.get({
+        websocketPort
+      }, (items) => {
+        websocketPort = items.websocketPort;
+        connectWebSocket();
+      });
+    }
+  } else {
+    // Disconnect if we're on a non-matching page
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
+  }
+}
+
+async function checkExistingTabs() {
+  const tabs = await chrome.tabs.query({active: true});
+  if (tabs[0]) {
+    handleTabUrl(tabs[0].url);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  checkExistingTabs();
 });

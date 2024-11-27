@@ -1,17 +1,16 @@
 // Add functions to create and manage chips
-function createChipsContainer(inputField) {
+function createChipsContainer(inputFieldParentContainer) {
     let container = document.getElementById('file-chips-container');
     if (!container) {
       container = document.createElement('div');
       container.id = 'file-chips-container';
       container.style.cssText = `
-        padding: 8px;
+        padding: 4px 0px;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 8px;
       `;
-      inputField.parentNode.insertBefore(container, inputField);
+      inputFieldParentContainer.prepend(container);
     }
     return container;
   }

@@ -57,9 +57,17 @@ function setupButtonClickHandler(button, codeBlock) {
         button.disabled = false;
     };
 
-    button.addEventListener('click', (e) => {
+    button.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+          // Check WebSocket connection
+        const isConnected = await isWebSocketConnected();
+
+        if (!isConnected) { 
+          alert("Cannot connect with VS Code, please ensure EasyCode extension is installed");
+          return true;
+        } 
         
         const platform = getCurrentPlatform();
         const selectors = platform.selectors;

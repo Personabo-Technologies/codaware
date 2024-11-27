@@ -3,6 +3,7 @@ const PLATFORMS = {
     CHATGPT: {
       hostnames: ['chat.openai.com', 'chatgpt.com'],
       selectors: {
+        inputFieldParent: '#composer-background',
         inputField: '#prompt-textarea',
         sendButton: '[data-testid="send-button"]',
         editor: '.ProseMirror',
@@ -29,6 +30,7 @@ const PLATFORMS = {
     CLAUDE: {
       hostnames: ['claude.ai'],
       selectors: {
+        inputFieldParent: '.flex.flex-col.bg-bg-000',
         inputField: '[contenteditable="true"].ProseMirror',
         sendButton: 'button[aria-label="Send Message"]',
         editor: '.ProseMirror',
@@ -69,5 +71,9 @@ const PLATFORMS = {
   function getSelectors() {
     const platform = getCurrentPlatform();
     return platform ? platform.selectors : null;
-  
+  }
+
+  function getInputFieldContainer() {
+    const container = document.querySelector(getCurrentPlatform().selectors.inputFieldParent);
+    return container;
   }

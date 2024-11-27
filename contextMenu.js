@@ -19,6 +19,7 @@ function shouldShowContextMenu(text, index) {
 // Add this function to handle all menu-related keyboard events
 function handleMenuKeyboardEvents(event, inputField) {
   const menu = document.getElementById('mention-context-menu');
+  const inputFieldContainer = getInputFieldContainer();
   
   // Handle keydown events when menu is open
   if (event.type === 'keydown' && menu) {
@@ -72,7 +73,7 @@ function handleMenuKeyboardEvents(event, inputField) {
       
       if (lastIndex !== -1 && shouldShowFileSuggestions) {
         const query = textBeforeCursor.slice(lastIndex + 1);
-        showContextMenu(inputField, range, query.trim());
+        showContextMenu(getInputFieldContainer(), range, query.trim());
       } else {
         removeContextMenu();
       }
@@ -132,13 +133,79 @@ function handleMenuKeyboardEvents(event, inputField) {
     }
   }
   
-  async function showContextMenu(inputField, range, query) {
-    removeContextMenu();
+  // Add this helper function to check WebSocket connection
+async function isWebSocketConnected() {
+  // Send a message to background script to check connection status
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage({ type: 'CHECK_CONNECTION' }, response => {
+      resolve(response?.connected || false);
+    });
+  });
+}
+
+async function showContextMenu(inputField, range, query) {
+  removeContextMenu();
+
+  const menu = document.createElement('div');
+  menu.id = 'mention-context-menu';
+  document.body.appendChild(menu);
   
-    const menu = document.createElement('div');
-    menu.id = 'mention-context-menu';
-  
-    // Create the input field inside the context menu
+  // Position the menu
+  const inputRect = inputField.getBoundingClientRect();
+  const menuTop = inputRect.top;
+  const menuLeft = inputRect.left;
+
+  menu.style.setProperty('--menu-top', `${menuTop}px`);
+  menu.style.left = `${menuLeft}px`;
+  menu.style.width = `${inputRect.width}px`;
+  menu.style.maxHeight = '200px';
+  menu.style.overflowY = 'auto';
+  menu.style.border = '1px solid #ccc';
+  menu.style.borderRadius = '15px';
+  menu.style.zIndex = '1000';
+
+  // Check WebSocket connection
+  const isConnected = await isWebSocketConnected();
+
+  if (!isConnected) {
+    // Create a message container for the disconnected state
+    const disconnectedMessage = document.createElement('div');
+    disconnectedMessage.style.cssText = `
+      height: 100%;
+      padding: 16px;
+      text-align: center;
+      background: #f8f9fa;
+      border-radius: 15px;
+      color: #333;
+      font-size: 13px;
+      line-height: 1.5;
+    `;
+
+    // Create message text
+    const messageText = document.createElement('p');
+    messageText.style.margin = '0 0 12px 0';
+    messageText.innerHTML = 'To use file suggestions, please install the <a href="https://marketplace.visualstudio.com/items?itemName=EasyCodeAI.chatgpt-gpt4-gpt3-vscode" target="_blank" style="color: #2563eb; text-decoration: underline; cursor: pointer;">EasyCode</a> companion extension in VS Code.';
+    // Create settings link
+    const settingsLink = document.createElement('a');
+    settingsLink.textContent = 'Learn more in settings';
+    settingsLink.href = '#';
+    settingsLink.style.cssText = `
+      color: #2563eb;
+      text-decoration: underline;
+      cursor: pointer;
+    `;
+    settingsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.sendMessage({ action: 'openOptions' });
+      removeContextMenu();
+    });
+
+    // Append elements
+    disconnectedMessage.appendChild(messageText);
+    disconnectedMessage.appendChild(settingsLink);
+    menu.appendChild(disconnectedMessage);
+  } else {
+    // Original menu content for connected state
     const menuInput = document.createElement('input');
     menuInput.type = 'text';
     menuInput.id = 'menu-input';
@@ -152,24 +219,7 @@ function handleMenuKeyboardEvents(event, inputField) {
     
     // Append both elements to the menu
     menu.appendChild(menuInput);
-    menu.appendChild(suggestionsContainer);
-    document.body.appendChild(menu);
-  
-    // Position the menu
-    const inputRect = inputField.getBoundingClientRect();
-    const menuTop = inputRect.top - 20;
-    const menuLeft = inputRect.left;
-  
-    menu.style.setProperty('--menu-top', `${menuTop}px`);
-    menu.style.left = `${menuLeft}px`;
-    menu.style.width = `${inputRect.width}px`;
-    menu.style.maxHeight = '200px';
-    menu.style.overflowY = 'auto';
-    menu.style.border = '1px solid #ccc';
-    menu.style.zIndex = '1000';
-  
-    // Focus on the menu input
-    menuInput.focus();
+    menu.appendChild(suggestionsContainer);  
   
     // Initial suggestions
     await updateSuggestions(suggestionsContainer, query);
@@ -183,6 +233,10 @@ function handleMenuKeyboardEvents(event, inputField) {
     menuInput.addEventListener('keydown', (event) => {
       handleMenuInputKeyDown(event, menuInput, menu);
     });
+
+        // Focus on the menu input
+        menuInput.focus();
+      }
   }
   
   async function updateSuggestions(menu, query) {

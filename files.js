@@ -116,6 +116,13 @@ function getSuggestions(query, retryCount = 3, delay = 1000) {
 
           const files = result.filePaths || [];
         
+          const suggestions = files.map(file => ({
+            label: '/' + file,
+            type: file.endsWith('/') ? 'folder' : 'file'
+          }));
+
+          /*
+          // add special entries such as "problems"
           const suggestions = [
             { label: 'problems', type: 'special' },
             ...files.map(file => ({
@@ -123,6 +130,7 @@ function getSuggestions(query, retryCount = 3, delay = 1000) {
               type: file.endsWith('/') ? 'folder' : 'file'
             }))
           ];
+          */
 
           if (!query) {
             resolve(suggestions);
@@ -156,7 +164,7 @@ function initializeCache() {
   }
 
   // Function to wait for DOM to be ready
-  function waitForDOM(callback, maxAttempts = 10) {
+  function waitForDOM(callback, maxAttempts = 3) {
     let attempts = 0;
     
     function checkDOM() {

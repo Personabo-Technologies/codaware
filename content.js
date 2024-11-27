@@ -23,6 +23,8 @@ async function initializeMentionExtension(inputField) {
   });
 }
 
+let inputFieldParentContainer;
+
 // Wrap the observer initialization in a function
 function initializeObservers() {
   const observer = new MutationObserver(() => {
@@ -30,12 +32,12 @@ function initializeObservers() {
     if (!selectors) return;
 
     // Add button to input container
-    const inputFieldContainer = document.querySelector(getCurrentPlatform() === PLATFORMS.CHATGPT
-      ? '#composer-background'
-      : '.flex.flex-col.bg-bg-000');
+    const inputFieldContainer = getInputFieldContainer();
 
     if (inputFieldContainer) {
-      addContextButton(inputFieldContainer);
+      const chipsContainer = createChipsContainer(inputFieldContainer);
+      addContextButton(chipsContainer);
+      addSettingsButton(chipsContainer);
     } else {
       console.log("no found");
     }
@@ -219,10 +221,70 @@ function addContextButton(inputFieldContainer) {
 
       const selection = window.getSelection();
       const range = selection.getRangeAt(0);
-      showContextMenu(inputField, range, "");
+      showContextMenu(getInputFieldContainer(), range, "");
     }
   });
 
   // Insert as first child
   inputFieldContainer.prepend(button);
+}
+
+function addSettingsButton(inputFieldContainer) {
+  // Check if link already exists
+  if (inputFieldContainer.querySelector('.settings-link')) {
+    return;
+  }
+
+  // Create container for right alignment
+  const linkContainer = document.createElement('div');
+  linkContainer.style.cssText = `
+    display: flex;
+    justify-content: flex-end;
+    position: absolute;
+    right: 10px;
+    z-index: 1000;
+  `;
+
+  // Create settings link
+  const link = document.createElement('span');
+  link.className = 'settings-link';
+  link.innerHTML = 'EasyCode Settings';
+  link.style.cssText = `
+    color: #888;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 8px;
+    opacity: 1;
+    transition: opacity 0.2s, color 0.2s;
+    font-family: Arial, sans-serif;
+  `;
+
+  // Add hover effect
+  link.addEventListener('mouseover', () => {
+    link.style.opacity = '1';
+    link.style.color = '#aaa';
+  });
+  link.addEventListener('mouseout', () => {
+    link.style.opacity = '1';
+    link.style.color = '#888';
+  });
+
+  // Add click handler to open options page
+  link.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'openOptions' });
+  });
+
+  // Add link to container and container to inputFieldContainer 
+  linkContainer.appendChild(link);
+  inputFieldContainer.appendChild(linkContainer);
+
+  // Platform-specific adjustments
+  const platform = getCurrentPlatform();
+  if (platform === PLATFORMS.CHATGPT) {
+    linkContainer.style.top = '8px';
+    linkContainer.style.right = '8px';
+  } else if (platform === PLATFORMS.CLAUDE) {
+    linkContainer.style.top = '10px';
+    linkContainer.style.right = '10px';
+  }
 }
