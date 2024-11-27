@@ -161,6 +161,13 @@ async function isSocketConnected() {
       socket.onopen = (event) => {
         clearTimeout(timeoutId);
         if (originalOnOpen) originalOnOpen(event);
+        else {
+          setTimeout(() => {
+            safeSendWebSocketMessage({
+                type: 'REQUEST_FILES'
+            });
+          }, 100);
+        }
         resolve();
       };
       
