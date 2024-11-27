@@ -34,7 +34,7 @@ const PLATFORMS = {
         inputField: '[contenteditable="true"].ProseMirror',
         sendButton: 'button[aria-label="Send Message"]',
         editor: '.ProseMirror',
-        codeBlock: '.code-block__code',
+        codeBlock: '.code-block__code.h-fit.min-h-full',
         codeBlockContainer: '.flex.flex-1.items-center.justify-end',
         codeActionButtonContainer: 'div[class="bg-bg-000 flex h-full flex-col"]' // Added closest selector for Claude
       },

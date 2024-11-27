@@ -50,22 +50,31 @@ function initializeObservers() {
 
   // Code block observer
   const codeBlockObserver = new MutationObserver((mutations) => {
+    const platform = getCurrentPlatform();
+    if (!platform) return;
+
+    const selectors = platform.selectors;
+    const codeBlockSelector = selectors.codeBlock;
+
     mutations.forEach(mutation => {
       if (mutation.type === 'childList') {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-
-            // Check for both ChatGPT and Claude code blocks
-            if (node.matches('pre code') || node.matches('.code-block__code')) {
-              addCodeBlockButton(node, node.matches('pre code') ? 'chatgpt' : 'claude');
+            // Check for code blocks using platform-specific selector
+            if (node.matches(codeBlockSelector)) {
+              addCodeBlockButton(
+                node, 
+                platform === PLATFORMS.CHATGPT ? 'chatgpt' : 'claude'
+              );
             }
-            // Also check children
-            const codeBlocks = node.querySelectorAll('pre code, .code-block__code');
+            
+            // Also check children using platform-specific selector
+            const codeBlocks = node.querySelectorAll(codeBlockSelector);
             codeBlocks.forEach(codeBlock => {
               if (!codeBlock.dataset.buttonAdded) {
                 addCodeBlockButton(
-                  codeBlock, 
-                  codeBlock.matches('pre code') ? 'chatgpt' : 'claude'
+                  codeBlock,
+                  platform === PLATFORMS.CHATGPT ? 'chatgpt' : 'claude'
                 );
               }
             });
@@ -106,8 +115,8 @@ initializeObservers();
 
 // Initialize code block buttons with proper timing
 function initializeCodeBlockButtons() {
-  addButtonsToCodeBlocks();
-  //setTimeout(addButtonsToCodeBlocks, 1000);
+  //addButtonsToCodeBlocks();
+  setTimeout(addButtonsToCodeBlocks, 1000);
   //setInterval(addButtonsToCodeBlocks, 2000);
 }
 

@@ -7,40 +7,55 @@ const TIMEOUT_DURATION = 120000; // 2 minutes in milliseconds
 
 // Function to add button to code blocks
 function addCodeBlockButton(codeBlock) {
-    if (codeBlock.dataset.buttonAdded) return;
-  
+    console.log(codeBlock);
+    // Check if button was already added using dataset
+    if (codeBlock.dataset.buttonAdded) {
+        console.log("skipping adding button, already has it");
+        return; // Add early return here
+    }
+
     const platform = getCurrentPlatform();
     if (!platform) return;
     const selectors = platform.selectors;
-  
+
     // For both ChatGPT and Claude
     if (codeBlock.matches(selectors.codeBlock)) {
-      const containerDiv = codeBlock.closest(selectors.codeActionButtonContainer);
-      if (!containerDiv) return;
-      
-      let buttonContainer = containerDiv.querySelector(`${platform.buttonStyle.container}`);
-      if (!buttonContainer) {
-          buttonContainer = document.createElement('div');
-          buttonContainer.className = platform.buttonStyle.container;
-          codeBlock.appendChild(buttonContainer);
-      } else {
-      }
-  
-      const applyButton = document.createElement('button');
-      if (platform === PLATFORMS.CHATGPT) {
-        applyButton.style.cssText = platform.buttonStyle.button;
-        buttonContainer.firstChild.prepend(applyButton);
-      } else if (platform == PLATFORMS.CLAUDE) {
-        applyButton.className = platform.buttonStyle.button;
-        buttonContainer.prepend(applyButton);
-      }
-      applyButton.innerHTML = platform.buttonStyle.icon;
-      
-      setupButtonClickHandler(applyButton, codeBlock);
-    } else {
+        const containerDiv = codeBlock.closest(selectors.codeActionButtonContainer);
+        if (!containerDiv) return;
+        
+        let buttonContainer = containerDiv.querySelector(`${platform.buttonStyle.container}`);
+        
+        // Check if button already exists in the container
+        if (buttonContainer) {
+            const existingApplyButton = Array.from(buttonContainer.querySelectorAll('button')).find(
+                btn => btn.innerHTML === platform.buttonStyle.icon
+            );
+            if (existingApplyButton) {
+                console.log("Apply button already exists, skipping");
+                codeBlock.dataset.buttonAdded = 'true';
+                return;
+            }
+        } else {
+            buttonContainer = document.createElement('div');
+            buttonContainer.className = platform.buttonStyle.container;
+            codeBlock.appendChild(buttonContainer);
+        }
+
+        const applyButton = document.createElement('button');
+        if (platform === PLATFORMS.CHATGPT) {
+            applyButton.style.cssText = platform.buttonStyle.button;
+            buttonContainer.firstChild.prepend(applyButton);
+        } else if (platform == PLATFORMS.CLAUDE) {
+            applyButton.className = platform.buttonStyle.button;
+            buttonContainer.prepend(applyButton);
+        }
+        applyButton.innerHTML = platform.buttonStyle.icon;
+        
+        setupButtonClickHandler(applyButton, codeBlock);
     }
-  
+
     codeBlock.dataset.buttonAdded = 'true';
+    console.log("adding button for codeblock");
 }
 
 // Helper function for button click handler
@@ -76,7 +91,7 @@ function setupButtonClickHandler(button, codeBlock) {
             ? codeBlock.querySelector('code').textContent 
             : codeBlock.textContent;
         
-        console.log('Code block content:', code);
+        //console.log('Code block content:', code);
         
         const similarityScores = predictApplyDestination(code);
         const applyDestination = similarityScores.reduce((best, current) =>
@@ -131,4 +146,4 @@ function addButtonsToCodeBlocks() {
         addCodeBlockButton(codeBlock, platform);
       }
     });
-  } 
+  }
