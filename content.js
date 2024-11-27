@@ -71,12 +71,10 @@ function initializeObservers() {
             // Also check children using platform-specific selector
             const codeBlocks = node.querySelectorAll(codeBlockSelector);
             codeBlocks.forEach(codeBlock => {
-              if (!codeBlock.dataset.buttonAdded) {
                 addCodeBlockButton(
                   codeBlock,
                   platform === PLATFORMS.CHATGPT ? 'chatgpt' : 'claude'
                 );
-              }
             });
           }
         });

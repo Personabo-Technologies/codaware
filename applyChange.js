@@ -8,6 +8,7 @@ const TIMEOUT_DURATION = 120000; // 2 minutes in milliseconds
 // Function to add button to code blocks
 function addCodeBlockButton(codeBlock) {
     console.log(codeBlock);
+
     // Check if button was already added using dataset
     if (codeBlock.dataset.buttonAdded) {
         console.log("skipping adding button, already has it");
@@ -31,9 +32,9 @@ function addCodeBlockButton(codeBlock) {
                 btn => btn.innerHTML === platform.buttonStyle.icon
             );
             if (existingApplyButton) {
-                console.log("Apply button already exists, skipping");
+                console.log("Apply button already exists, remove the current one");
                 codeBlock.dataset.buttonAdded = 'true';
-                return;
+                buttonContainer.removeChild(existingApplyButton);
             }
         } else {
             buttonContainer = document.createElement('div');
@@ -87,49 +88,60 @@ function setupButtonClickHandler(button, codeBlock) {
         const platform = getCurrentPlatform();
         const selectors = platform.selectors;
 
-        const code = codeBlock.matches(selectors.codeBlock) && codeBlock.querySelector('code') 
+        let code;
+        if (window.location.hostname.includes('claude.ai')) {
+            const containerDiv = button.closest(selectors.codeActionButtonContainer);
+            codeblock = containerDiv.querySelector(selectors.codeBlock);
+            code = codeBlock.querySelector('code').textContent
+        } else {
+            code = codeBlock.matches(selectors.codeBlock) && codeBlock.querySelector('code') 
             ? codeBlock.querySelector('code').textContent 
             : codeBlock.textContent;
+        }
         
-        //console.log('Code block content:', code);
-        
-        const similarityScores = predictApplyDestination(code);
-        const applyDestination = similarityScores.reduce((best, current) =>
-            current.score > best.score ? current : best
-        );
-
-        const scoresText = similarityScores
-            .sort((a, b) => b.score - a.score)
-            .map(entry => `${entry.fileName}: ${(entry.score * 100).toFixed(1)}%`)
-            .join('\n');
-        
-        const confirmMessage = `Do you want to apply changes to:\n${applyDestination.fileName}\n\nAll matches:\n${scoresText}`;
-        
-        if (confirm(confirmMessage)) {
-            // Show spinner and disable button
-            button.innerHTML = SPINNER_SVG;
-            button.disabled = true;
-
-            // Set timeout to reset button after 2 minutes
-            timeoutId = setTimeout(() => {
-                resetButton();
-            }, TIMEOUT_DURATION);
-
-            chrome.runtime.sendMessage({
-                type: 'APPLY_DIFF',
-                fileName: `.${applyDestination.fileName}`,
-                code: code
-            }, (response) => {
-                if (response.error) {
-                    console.error('Error applying changes:', response.error);
-                    alert('Failed to apply changes: ' + response.error);
+        console.log('Code block content:', code);
+    
+        try {
+            const similarityScores = predictApplyDestination(code);
+            const applyDestination = similarityScores.reduce((best, current) =>
+                current.score > best.score ? current : best
+            );
+    
+            const scoresText = similarityScores
+                .sort((a, b) => b.score - a.score)
+                .map(entry => `${entry.fileName}: ${(entry.score * 100).toFixed(1)}%`)
+                .join('\n');
+            
+            const confirmMessage = `Do you want to apply changes to:\n${applyDestination.fileName}\n\nAll matches:\n${scoresText}`;
+            
+            if (confirm(confirmMessage)) {
+                // Show spinner and disable button
+                button.innerHTML = SPINNER_SVG;
+                button.disabled = true;
+    
+                // Set timeout to reset button after 2 minutes
+                timeoutId = setTimeout(() => {
                     resetButton();
-                } else {
-                    console.log('Changes applied successfully:', response.output);
-                    alert('Changes applied successfully');
-                    resetButton();
-                }
-            });
+                }, TIMEOUT_DURATION);
+    
+                chrome.runtime.sendMessage({
+                    type: 'APPLY_DIFF',
+                    fileName: `.${applyDestination.fileName}`,
+                    code: code
+                }, (response) => {
+                    if (response.error) {
+                        console.error('Error applying changes:', response.error);
+                        alert('Failed to apply changes: ' + response.error);
+                        resetButton();
+                    } else {
+                        console.log('Changes applied successfully:', response.output);
+                        alert('Changes applied successfully');
+                        resetButton();
+                    }
+                });
+            }   
+        } catch (e) {
+            alert("Failed to apply change, please ensure VS Code extension is running and the right project is open");
         }
     });
   }
@@ -142,8 +154,6 @@ function addButtonsToCodeBlocks() {
   
     const codeBlocks = document.querySelectorAll(platform.selectors.codeBlock);
     codeBlocks.forEach((codeBlock) => {
-      if (!codeBlock.dataset.buttonAdded) {
         addCodeBlockButton(codeBlock, platform);
-      }
     });
   }

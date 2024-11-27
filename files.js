@@ -256,8 +256,8 @@ function predictApplyDestination(code, filesList) {
       console.log('Best matching file:', bestMatch);
       return bestMatch;
     } catch (error) {
-      console.error('Error in predictApplyDestination:', error);
-      return "ERROR: MATCHING FAILED";
+      console.low('Error in predictApplyDestination:', error);
+      throw new Error("ERROR: MATCHING FAILED");
     }
   
     //return `client/src/shared/utils/toast.js`;
