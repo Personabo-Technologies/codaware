@@ -1,5 +1,5 @@
-# Codaware
-Chat with Codebase from ChatGPT Web or Claude.ai
+<h1 align="center"><br>Codaware - by EasyCode<br></h1>
+<p align="center">Chat with Codebase from ChatGPT Web or Claude.ai</p>
 
 ## Benefits
 - no more copying & pasting
@@ -22,7 +22,7 @@ Chat with Codebase from ChatGPT Web or Claude.ai
 - [x] hitting ENTER sends question without injecting file content [Medium]
 - [x] Error loading files sometimes
 - [x] socket error sometimes [Tiny]
-- [ ] prevent duplicated files from being added.  [Tiny]
+- [x] prevent duplicated files from being added.  [Tiny]
 
 ## Improvements
 - [x] refactor front end into more modular components [Medium]
@@ -34,11 +34,10 @@ Chat with Codebase from ChatGPT Web or Claude.ai
 - [ ] collapse the codeblocks in the "sent" sections [Tiny/Easy]
 - [ ] don't resend file content its already in chat context [Tiny]
 
-## Other TODOs
-- [ ] add EasyCode branding
-- [ ] add some kind of UI to show how to use the extension
-
 ## Future Feature Ideas
 - have to copy and paste error from service worker in background.js
 - ability to @problems inside chrome extension
 - ability to @codebase 
+
+## Bugs or Features
+- Please submit a issue. 
