@@ -154,7 +154,7 @@ async function isSocketConnected() {
       // Set a timeout to reject the promise if connection takes too long
       const timeoutId = setTimeout(() => {
         reject(new Error('Connection timeout'));
-      }, 3000); // 5 second timeout
+      }, 1000); // 5 second timeout
       
       connectWebSocket();
       
@@ -273,6 +273,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ connected });
     });
     return true;
+  } else if (message.type === "REQUEST_FILES") {
+    // Create a promise that resolves when files are updated
+    const filesUpdatePromise = new Promise((resolve) => {
+      // Store the resolve function in a callback that will be called 
+      // when we receive the FILE_LIST response
+      const messageCallback = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'FILE_LIST') {
+          socket.removeEventListener('message', messageCallback);
+          resolve(data.files);
+        }
+      };
+      
+      // Add temporary listener for this specific request
+      socket.addEventListener('message', messageCallback);
+      
+      // Send the request
+      safeSendWebSocketMessage({
+        type: 'REQUEST_FILES'
+      });
+      
+      // Add timeout to prevent hanging
+      setTimeout(() => {
+        socket.removeEventListener('message', messageCallback);
+        resolve([]); // Resolve with empty array if timeout
+      }, 5000);
+    });
+
+    // Wait for files to be updated before sending response
+    filesUpdatePromise.then((files) => {
+      sendResponse({ success: true, files });
+    });
+
+    return true; // Keep message channel open for async response
   }
 });
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

@@ -3,7 +3,7 @@ let fileContentCache = {};
 
 // Function to extract file paths from the page content
 function extractFilePaths() {
-  const filePathRegex = /filepath:(\/[^\s]+)/g;
+  const filePathRegex = /filepath:([^\s]+)/g;
 
   const textNodes = document.evaluate(
     "//text()", 
@@ -117,7 +117,7 @@ function getSuggestions(query, retryCount = 3, delay = 1000) {
           const files = result.filePaths || [];
         
           const suggestions = files.map(file => ({
-            label: '/' + file,
+            label: file,
             type: file.endsWith('/') ? 'folder' : 'file'
           }));
 

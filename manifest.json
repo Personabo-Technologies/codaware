@@ -3,6 +3,9 @@
     "name": "Codaware, by EasyCode",
     "version": "1.0",
     "description": "Chat with codebase and apply changes directly.",
+    "icons": {
+        "128": "easycode.png"
+    },
     "permissions": ["scripting", "activeTab", "storage"],
     "host_permissions": [
         "https://chat.openai.com/*",

@@ -152,7 +152,7 @@ async function insertMentionContent(inputField, suggestion) {
   }
 
   if (!(suggestion.label in fileContentCache) && suggestion.type !== 'folder') {
-    getFileContents(suggestion.label.slice(1))
+    getFileContents(suggestion.label)
       .then(content => {
         fileContentCache[suggestion.label] = content;
       })
@@ -164,7 +164,7 @@ async function insertMentionContent(inputField, suggestion) {
   // Clean up '>' character and add file name
   const currentText = inputField.value || inputField.innerText;
   if (currentText.endsWith('>')) {
-    const newText = currentText.slice(0, -1) + `file: ${suggestion.label.slice(1)} `;
+    const newText = currentText.slice(0, -1) + `file: ${suggestion.label} `;
     if (inputField.value !== undefined) {
       inputField.value = newText;
     } else {

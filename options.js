@@ -15,12 +15,18 @@ function saveOptions() {
 
 // Clear file paths cache
 function clearFilesCache() {
+    const status = document.getElementById('status');
     chrome.storage.local.remove('filePaths', () => {
-        const status = document.getElementById('status');
         status.textContent = 'Files cache cleared.';
-        setTimeout(() => {
-            status.textContent = '';
-        }, 2000);
+        
+        chrome.runtime.sendMessage({ type: 'REQUEST_FILES' }, response => {
+            if (response && response.success) {
+                status.textContent = 'Files cache updated.';
+                displayCachedFiles();
+            } else {
+                status.textContent = 'Failed to update files cache.';
+            }
+        });
     });
 }
 
@@ -41,10 +47,10 @@ function checkConnection() {
         isWebSocketConnected().then(connected => {
         
             if (connected) {
-                status.textContent = 'WebSocket is connected.';
+                status.textContent = 'Connected to VS Code.';
                 status.style.color = '#4CAF50';
             } else {
-                status.textContent = 'WebSocket is not connected.';
+                status.textContent = 'Not connected to VS Code. Make sure EasyCode extension is running in VS Code.';
                 status.style.color = '#F44336';
             }
             
@@ -66,6 +72,39 @@ function restoreOptions() {
         websocketPort: 49201 // default value
     }, (items) => {
         document.getElementById('port').value = items.websocketPort;
+    });
+}
+
+// Add this function to display cached files
+function displayCachedFiles() {
+    const cachedFilesElement = document.getElementById('cachedFiled');
+    
+    chrome.storage.local.get('filePaths', (result) => {
+        const files = result.filePaths || [];
+        
+        if (files.length === 0) {
+            cachedFilesElement.innerHTML = '<p>No cached files found. Please make sure EasyCode extension is running in VS Code</p>';
+            return;
+        }
+
+        const fileList = document.createElement('ul');
+        fileList.style.cssText = 'list-style: none; padding: 0; max-height: 300px; overflow-y: auto;';
+        
+        files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file;
+            li.style.cssText = 'padding: 4px 0; border-bottom: 1px solid #eee;';
+            fileList.appendChild(li);
+        });
+
+        cachedFilesElement.innerHTML = ''; // Clear previous content
+        cachedFilesElement.appendChild(fileList);
+        
+        // Add file count
+        const countDiv = document.createElement('div');
+        countDiv.textContent = `Total files: ${files.length}`;
+        countDiv.style.marginTop = '10px';
+        cachedFilesElement.appendChild(countDiv);
     });
 }
 
@@ -312,4 +351,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     restoreOptions();
+    checkConnection();
+    displayCachedFiles(); // Display cached files when page loads
+});
+
+// Add storage change listener to update displayed files when cache changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.filePaths) {
+        displayCachedFiles();
+    }
 });

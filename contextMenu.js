@@ -206,7 +206,6 @@ async function showContextMenu(inputField, range, query) {
     disconnectedMessage.style.cssText = `
       height: 100%;
       padding: 16px;
-      text-align: center;
       background: #f8f9fa;
       color: #333;
       font-size: 13px;
@@ -216,7 +215,14 @@ async function showContextMenu(inputField, range, query) {
     // Create message text
     const messageText = document.createElement('p');
     messageText.style.margin = '0 0 12px 0';
-    messageText.innerHTML = 'To use file suggestions, please install the <a href="https://marketplace.visualstudio.com/items?itemName=EasyCodeAI.chatgpt-gpt4-gpt3-vscode" target="_blank" style="color: #2563eb; text-decoration: underline; cursor: pointer;">EasyCode</a> companion extension in VS Code.';
+    messageText.innerHTML = `<b style="color: red">Error: Failed to retrieve files.</b>
+    <br><br>
+    To add files, please install the 
+    <a href="https://marketplace.visualstudio.com/items?itemName=EasyCodeAI.chatgpt-gpt4-gpt3-vscode" target="_blank" style="color: #2563eb; text-decoration: underline; cursor: pointer;">EasyCode</a>
+    companion extension in VS Code.
+    <br>
+    The VS Code extension establishes a local connection to serve file content and apply changes. 
+    `;
     // Create settings link
     const settingsLink = document.createElement('a');
     settingsLink.textContent = 'Learn more in settings';
